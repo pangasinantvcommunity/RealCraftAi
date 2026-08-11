@@ -1,0 +1,98 @@
+import { inngest } from "./client";
+import { prisma } from "@/lib/prisma";
+import { transcribeAudio } from "@/services/whisper";
+import { splitTranscriptIntoScenes } from "@/services/scene-splitter";
+import { generateSceneImage } from "@/services/image-generation";
+import { renderStoryVideo } from "@/services/video-render";
+import { uploadImage } from "@/lib/storage";
+import { storyConfig } from "@/lib/config";
+
+export const generateStoryVideo = inngest.createFunction(
+  { id: "generate-story-video", retries: 1 },
+  { event: "story/generate.requested" },
+  async ({ event, step }) => {
+    const { videoId } = event.data as { videoId: string };
+
+    try {
+      const transcript = await step.run("transcribe", async () => {
+        await prisma.video.update({ where: { id: videoId }, data: { status: "transcribing" } });
+
+        const video = await prisma.video.findUniqueOrThrow({ where: { id: videoId } });
+        const response = await fetch(video.audioUrl);
+        const audioBuffer = Buffer.from(await response.arrayBuffer());
+
+        const text = await transcribeAudio(audioBuffer, "audio.webm");
+        await prisma.video.update({ where: { id: videoId }, data: { transcript: text } });
+
+        return text;
+      });
+
+      const scenes = await step.run("create-scenes", async () => {
+        await prisma.video.update({ where: { id: videoId }, data: { status: "creating_scenes" } });
+
+        const split = splitTranscriptIntoScenes(transcript, storyConfig.sceneCount);
+
+        await prisma.scene.createMany({
+          data: split.map((s) => ({
+            videoId,
+            sceneOrder: s.order,
+            prompt: s.prompt,
+            subtitle: s.subtitle,
+          })),
+        });
+
+        return prisma.scene.findMany({ where: { videoId }, orderBy: { sceneOrder: "asc" } });
+      });
+
+      await step.run("generate-images", async () => {
+        await prisma.video.update({ where: { id: videoId }, data: { status: "generating_images" } });
+
+        for (const scene of scenes) {
+          const imageBuffer = await generateSceneImage(scene.prompt);
+          const imageUrl = await uploadImage(imageBuffer);
+          await prisma.scene.update({ where: { id: scene.id }, data: { imageUrl } });
+        }
+      });
+
+      const videoUrl = await step.run("render-video", async () => {
+        await prisma.video.update({ where: { id: videoId }, data: { status: "rendering" } });
+
+        const renderedScenes = await prisma.scene.findMany({
+          where: { videoId },
+          orderBy: { sceneOrder: "asc" },
+        });
+        const video = await prisma.video.findUniqueOrThrow({ where: { id: videoId } });
+
+        return renderStoryVideo(
+          renderedScenes.map((s) => ({
+            order: s.sceneOrder,
+            subtitle: s.subtitle,
+            imageUrl: s.imageUrl!,
+          })),
+          video.audioUrl,
+        );
+      });
+
+      await step.run("finalize", async () => {
+        await prisma.video.update({
+          where: { id: videoId },
+          data: { status: "completed", videoUrl },
+        });
+      });
+
+      return { videoId, status: "completed" };
+    } catch (error) {
+      await prisma.video.update({
+        where: { id: videoId },
+        data: {
+          status: "failed",
+          metadata: {
+            error: error instanceof Error ? error.message : "Unknown error",
+            failedAt: new Date().toISOString(),
+          },
+        },
+      });
+      throw error;
+    }
+  },
+);

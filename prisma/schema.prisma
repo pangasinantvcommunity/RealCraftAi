@@ -1,0 +1,70 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum VideoStatus {
+  pending
+  transcribing
+  creating_scenes
+  generating_images
+  rendering
+  completed
+  failed
+}
+
+model User {
+  id            String   @id @default(uuid())
+  name          String
+  email         String   @unique
+  passwordHash  String   @map("password_hash")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  videos Video[]
+
+  @@map("users")
+}
+
+model Video {
+  id              String      @id @default(uuid())
+  userId          String      @map("user_id")
+  status          VideoStatus @default(pending)
+  audioUrl        String      @map("audio_url")
+  transcript      String?
+  videoUrl        String?     @map("video_url")
+  durationSeconds Int?        @map("duration_seconds")
+  metadata        Json?
+  createdAt       DateTime    @default(now()) @map("created_at")
+  updatedAt       DateTime    @updatedAt @map("updated_at")
+
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  scenes Scene[]
+
+  @@index([userId])
+  @@index([status])
+  @@map("videos")
+}
+
+model Scene {
+  id         String   @id @default(uuid())
+  videoId    String   @map("video_id")
+  sceneOrder Int      @map("scene_order")
+  prompt     String
+  imageUrl   String?  @map("image_url")
+  subtitle   String
+  metadata   Json?
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  video Video @relation(fields: [videoId], references: [id], onDelete: Cascade)
+
+  @@unique([videoId, sceneOrder])
+  @@index([videoId])
+  @@map("scenes")
+}
