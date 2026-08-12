@@ -11,12 +11,6 @@ const FEATURES = [
   { icon: "📱", title: "Vertical & Social Ready", desc: "1080×1920 MP4 optimized for TikTok, Reels, and Shorts." },
 ];
 
-const TESTIMONIALS = [
-  { name: "Marisol T.", role: "Content Creator", quote: "I typed one line about my brand story and had a finished cinematic video before I finished my coffee." },
-  { name: "Jayson R.", role: "Small Business Owner", quote: "Realcraft AI made our brand story look like a Pixar short. Our Reels engagement tripled." },
-  { name: "Ana Dela Cruz", role: "Educator", quote: "I paste in a short screenplay prompt and get a 6-scene storyboard with perfect pacing." },
-];
-
 export default function HomePage() {
   return (
     <>
@@ -89,7 +83,7 @@ export default function HomePage() {
       <section id="gallery" className="relative mx-auto max-w-7xl px-6 py-28">
         <div className="mx-auto max-w-2xl text-center" data-reveal>
           <h2 className="cinematic-heading font-heading text-4xl font-bold sm:text-5xl">
-            Stories Crafted by Realcraft AI
+            Stories Crafted by RealCraft AI
           </h2>
           <p className="mt-4 text-zinc-400">Every video, a cinematic short — generated in minutes.</p>
         </div>
@@ -100,22 +94,6 @@ export default function HomePage() {
               <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-violet-900/40 to-cyan-900/20 text-4xl">
                 🎞️
               </div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      <section className="relative mx-auto max-w-7xl px-6 py-28">
-        <div className="mx-auto max-w-2xl text-center" data-reveal>
-          <h2 className="cinematic-heading font-heading text-4xl font-bold sm:text-5xl">Loved by Storytellers</h2>
-        </div>
-
-        <div className="mt-16 grid gap-6 md:grid-cols-3">
-          {TESTIMONIALS.map((t) => (
-            <div key={t.name} className="glass-panel p-8" data-reveal>
-              <p className="text-zinc-200">&ldquo;{t.quote}&rdquo;</p>
-              <p className="mt-6 font-heading text-sm font-semibold text-white">{t.name}</p>
-              <p className="text-xs text-zinc-500">{t.role}</p>
             </div>
           ))}
         </div>

@@ -23,7 +23,7 @@ export default function Nav() {
         }`}
       >
         <Link href="/" className="font-heading text-lg font-bold tracking-tight text-white">
-          Realcraft <span className="cinematic-heading">AI</span>
+          RealCraft <span className="cinematic-heading">AI</span>
         </Link>
 
         <div className="hidden items-center gap-8 md:flex">

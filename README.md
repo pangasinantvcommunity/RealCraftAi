@@ -1,4 +1,4 @@
-# Realcraft AI (Next.js + Vercel)
+# RealCraft AI (Next.js + Vercel)
 
 Turn a voice recording into a cinematic 3D-style animated story video, ready for TikTok, Reels, and Shorts.
 

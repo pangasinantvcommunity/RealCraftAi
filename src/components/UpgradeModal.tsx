@@ -16,7 +16,7 @@ export default function UpgradeModal({ initialOpen }: { initialOpen: boolean }) 
       <div className="glass-panel relative max-w-md p-8 text-center">
         <h3 className="cinematic-heading font-heading text-2xl font-bold">Daily Limit Reached</h3>
         <p className="mt-3 text-sm text-zinc-400">
-          You&apos;ve used all your free stories today. Upgrade to Realcraft AI Pro for unlimited cinematic
+          You&apos;ve used all your free stories today. Upgrade to RealCraft AI Pro for unlimited cinematic
           stories and priority rendering.
         </p>
         <div className="mt-6 flex justify-center gap-3">

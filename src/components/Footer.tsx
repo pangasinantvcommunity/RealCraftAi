@@ -9,10 +9,10 @@ export default function Footer() {
         <div className="grid gap-10 md:grid-cols-4">
           <div>
             <p className="font-heading text-lg font-bold text-white">
-              Realcraft <span className="cinematic-heading">AI</span>
+              RealCraft <span className="cinematic-heading">AI</span>
             </p>
             <p className="mt-3 max-w-xs text-sm text-zinc-400">
-              Turn your voice into a cinematic 3D animated story — built for TikTok, Reels, and Shorts.
+              Turn your idea into a cinematic 3D animated story — built for TikTok, Reels, and Shorts.
             </p>
           </div>
 
@@ -44,7 +44,7 @@ export default function Footer() {
         </div>
 
         <div className="mt-12 flex flex-col items-center justify-between gap-4 border-t border-white/5 pt-8 text-xs text-zinc-500 md:flex-row">
-          <p>&copy; {new Date().getFullYear()} Realcraft AI. All rights reserved.</p>
+          <p>&copy; {new Date().getFullYear()} RealCraft AI. All rights reserved.</p>
           <p className="cinematic-heading font-heading">Cinematic AI, crafted for creators.</p>
         </div>
       </div>

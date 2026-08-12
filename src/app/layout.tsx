@@ -18,17 +18,17 @@ const sora = Sora({ subsets: ["latin"], variable: "--font-sora", weight: ["400",
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter", weight: ["400", "500", "600"] });
 
 export const metadata: Metadata = {
-  title: "Realcraft AI — Create Cinematic Stories from Text",
+  title: "RealCraft AI — Create Cinematic Stories from Text",
   description: "Turn a text prompt into a cinematic 3D story video in seconds.",
   keywords: "AI story generator, text to video, cinematic story generator, animated story maker, cinematic AI video creator",
   openGraph: {
-    title: "Realcraft AI — Create Cinematic Stories from Text",
+    title: "RealCraft AI — Create Cinematic Stories from Text",
     description: "Turn a text prompt into a cinematic 3D story video in seconds.",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Realcraft AI — Create Cinematic Stories from Text",
+    title: "RealCraft AI — Create Cinematic Stories from Text",
     description: "Turn a text prompt into a cinematic 3D story video in seconds.",
   },
 };
@@ -45,7 +45,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             __html: JSON.stringify({
               "@context": "https://schema.org",
               "@type": "SoftwareApplication",
-              name: "Realcraft AI",
+              name: "RealCraft AI",
               applicationCategory: "MultimediaApplication",
               operatingSystem: "Web",
               description: "AI story generator that turns voice recordings into cinematic animated videos.",
