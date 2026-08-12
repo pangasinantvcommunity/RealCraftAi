@@ -199,6 +199,9 @@ export default function StoryPreview({
         <button type="button" data-magnetic className="btn-secondary" onClick={handleShare}>
           ↗ Share
         </button>
+        <Link href={`/stories/${videoId}/edit`} data-magnetic className="btn-secondary">
+          ✎ Edit
+        </Link>
         <Link href="/stories/create" data-magnetic className="btn-secondary">
           + Create Another Story
         </Link>

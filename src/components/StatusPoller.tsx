@@ -33,6 +33,7 @@ export default function StatusPoller({
   emotionalArc,
   scenes,
   aspectRatio,
+  projectId,
 }: {
   videoId: string;
   initialStatus: string;
@@ -41,13 +42,33 @@ export default function StatusPoller({
   emotionalArc?: string[];
   scenes?: StoryboardScene[];
   aspectRatio?: string;
+  projectId?: string | null;
 }) {
   const router = useRouter();
+  const retryUrl = projectId ? `/projects/${projectId}/episodes/new` : "/stories/create";
   const [status, setStatus] = useState(initialStatus);
   const [progress, setProgress] = useState(initialProgress);
   const [failed, setFailed] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const [cancelling, setCancelling] = useState(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const cancelGeneration = async () => {
+    if (cancelling) return;
+    setCancelling(true);
+    try {
+      const response = await fetch(`/api/stories/${videoId}/cancel`, { method: "POST" });
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        throw new Error(body.error || "Could not cancel this story.");
+      }
+      // Next poll tick (within 3s) will pick up status="failed" and show the cancelled state.
+    } catch (error) {
+      setCancelling(false);
+      const message = error instanceof Error ? error.message : "Could not cancel this story.";
+      fireToast({ type: "error", message });
+    }
+  };
 
   useEffect(() => {
     const poll = async () => {
@@ -150,10 +171,24 @@ export default function StatusPoller({
           </div>
         )}
 
+        {!failed && (
+          <button
+            type="button"
+            onClick={cancelGeneration}
+            disabled={cancelling}
+            className="btn-secondary mt-8 !border-red-500/30 !text-red-300 hover:!text-red-200 disabled:opacity-50"
+          >
+            {cancelling ? "Cancelling..." : "Cancel Generation"}
+          </button>
+        )}
+
         {failed && (
           <>
             <p className="mt-8 text-sm text-red-400">{errorMessage || "Something went wrong while generating your story."}</p>
-            <Link href="/stories/create" className="btn-secondary mt-4 inline-flex">Try Again</Link>
+            <div className="mt-4 flex justify-center gap-3">
+              <Link href={`/stories/${videoId}/edit`} className="btn-secondary">Edit Title/Prompt</Link>
+              <Link href={retryUrl} className="btn-primary">Try Again</Link>
+            </div>
           </>
         )}
       </div>

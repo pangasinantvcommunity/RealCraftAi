@@ -30,7 +30,9 @@ export default function Footer() {
             <ul className="mt-3 space-y-2 text-sm text-zinc-400">
               <li><Link href="#" className="hover:text-white">About</Link></li>
               <li><Link href="#" className="hover:text-white">Contact</Link></li>
-              <li><Link href="/sitemap.xml" className="hover:text-white">Sitemap</Link></li>
+              {/* Plain <a>, not <Link> — /sitemap.xml is a raw XML metadata
+                  route, not a page, so Next's RSC prefetch on <Link> 404s. */}
+              <li><a href="/sitemap.xml" className="hover:text-white">Sitemap</a></li>
             </ul>
           </div>
 
