@@ -6,8 +6,11 @@ import gsap from "gsap";
 import { isDevMode } from "@/lib/config";
 import SceneStoryboard from "@/components/SceneStoryboard";
 import EmotionalArcChips from "@/components/EmotionalArcChips";
+import type { RuntimeStructure } from "@/types/project";
 
 export type PreviewScene = { subtitle: string; imageUrl: string | null };
+export type PreviewCharacter = { name: string; imageUrl: string | null };
+export type PreviewLocation = { name: string; imageUrl: string | null };
 
 function useMagnetic() {
   useEffect(() => {
@@ -42,21 +45,33 @@ export default function StoryPreview({
   videoUrl,
   posterUrl,
   title,
+  projectTitle,
   summary,
   emotionalArc,
   transcript,
   scenes,
   aspectRatio = "9:16",
+  characters = [],
+  locations = [],
+  runtimeStructure = null,
+  sceneCount,
+  partsPerEpisode,
 }: {
   videoId: string;
   videoUrl: string;
   posterUrl: string | null;
   title?: string | null;
+  projectTitle?: string | null;
   summary?: string | null;
   emotionalArc?: string[];
   transcript?: string | null;
   scenes?: PreviewScene[];
   aspectRatio?: string;
+  characters?: PreviewCharacter[];
+  locations?: PreviewLocation[];
+  runtimeStructure?: RuntimeStructure | null;
+  sceneCount?: number;
+  partsPerEpisode?: number | null;
 }) {
   const isLandscape = aspectRatio === "16:9";
   useMagnetic();
@@ -80,11 +95,20 @@ export default function StoryPreview({
       <div className="pointer-events-none absolute inset-0 bg-aurora bg-[length:200%_200%] opacity-[0.06] animate-gradient-shift" />
 
       <div className="relative z-10 text-center">
-        <p className="text-xs uppercase tracking-[0.3em] text-violet-300">Your Story Is Ready</p>
+        <p className="text-xs uppercase tracking-[0.3em] text-violet-300">
+          {projectTitle ? `${projectTitle} — Episode Ready` : "Your Story Is Ready"}
+        </p>
         <h1 className="cinematic-heading mt-3 font-heading text-3xl font-bold sm:text-4xl">
           {title || "Watch Your Cinematic Story"}
         </h1>
         {summary && <p className="mx-auto mt-3 max-w-lg text-sm text-zinc-400">{summary}</p>}
+        {(sceneCount || runtimeStructure) && (
+          <p className="mt-2 text-xs text-zinc-500">
+            {partsPerEpisode ? `${partsPerEpisode} parts · ` : ""}
+            {sceneCount ? `${sceneCount} scenes` : ""}
+            {runtimeStructure?.averageSceneDurationSeconds ? ` · ~${runtimeStructure.averageSceneDurationSeconds}s/scene` : ""}
+          </p>
+        )}
         {emotionalArc && emotionalArc.length > 0 && (
           <div className="mt-4">
             <EmotionalArcChips arc={emotionalArc} />
@@ -123,6 +147,48 @@ export default function StoryPreview({
         <div className="relative z-10 mt-8 w-full max-w-3xl">
           <p className="mb-3 text-center text-xs uppercase tracking-wide text-zinc-500">Storyboard</p>
           <SceneStoryboard scenes={scenes.map((scene, i) => ({ order: i + 1, ...scene }))} aspectRatio={aspectRatio} />
+        </div>
+      )}
+
+      {characters.length > 0 && (
+        <div className="relative z-10 mt-8 w-full max-w-3xl">
+          <p className="mb-3 text-center text-xs uppercase tracking-wide text-zinc-500">Characters</p>
+          <div className="flex flex-wrap justify-center gap-3">
+            {characters.map((c) => (
+              <div key={c.name} className="glass-panel flex items-center gap-2 py-1.5 pl-1.5 pr-4">
+                <div className="h-9 w-9 shrink-0 overflow-hidden rounded-full border border-white/10 bg-white/5">
+                  {c.imageUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={c.imageUrl} alt={c.name} className="h-full w-full object-cover" />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center text-xs">🎭</div>
+                  )}
+                </div>
+                <span className="text-xs text-zinc-300">{c.name}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {locations.length > 0 && (
+        <div className="relative z-10 mt-6 w-full max-w-3xl">
+          <p className="mb-3 text-center text-xs uppercase tracking-wide text-zinc-500">Locations</p>
+          <div className="flex flex-wrap justify-center gap-3">
+            {locations.map((l) => (
+              <div key={l.name} className="glass-panel flex items-center gap-2 py-1.5 pl-1.5 pr-4">
+                <div className="h-9 w-9 shrink-0 overflow-hidden rounded-full border border-white/10 bg-white/5">
+                  {l.imageUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={l.imageUrl} alt={l.name} className="h-full w-full object-cover" />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center text-xs">🏙️</div>
+                  )}
+                </div>
+                <span className="text-xs text-zinc-300">{l.name}</span>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 

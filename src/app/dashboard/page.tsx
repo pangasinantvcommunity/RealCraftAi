@@ -5,7 +5,7 @@ import { remainingCredits } from "@/lib/story";
 import { storyConfig } from "@/lib/config";
 import UpgradeModal from "@/components/UpgradeModal";
 import DevModeBadge from "@/components/DevModeBadge";
-import { STORY_STYLES } from "@/components/StyleSelector";
+import { STORY_STYLES } from "@/lib/story-options";
 
 function styleLabel(style: string | null): string | null {
   if (!style) return null;
@@ -21,11 +21,22 @@ export default async function DashboardPage({
   const userId = session!.user.id;
   const { limitReached } = await searchParams;
 
-  const [videos, credits, totalCount, completedCount] = await Promise.all([
-    prisma.video.findMany({ where: { userId }, orderBy: { createdAt: "desc" }, take: 9 }),
+  const [videos, credits, totalCount, completedCount, projects] = await Promise.all([
+    prisma.video.findMany({
+      where: { userId },
+      orderBy: { createdAt: "desc" },
+      take: 9,
+      include: { project: { select: { title: true } } },
+    }),
     remainingCredits(userId),
     prisma.video.count({ where: { userId } }),
     prisma.video.count({ where: { userId, status: "completed" } }),
+    prisma.project.findMany({
+      where: { userId },
+      orderBy: { updatedAt: "desc" },
+      take: 4,
+      include: { _count: { select: { characters: true, locations: true, episodes: true } } },
+    }),
   ]);
 
   const dailyLimit = storyConfig.dailyFreeCredits;
@@ -44,7 +55,10 @@ export default async function DashboardPage({
           </div>
           <p className="text-zinc-400">{totalCount} cinematic {totalCount === 1 ? "story" : "stories"} created so far.</p>
         </div>
-        <Link href="/stories/create" className="btn-primary">+ Create Cinematic Story</Link>
+        <div className="flex gap-3">
+          <Link href="/projects/new" className="btn-secondary">+ New Project</Link>
+          <Link href="/stories/create" className="btn-primary">+ Create Cinematic Story</Link>
+        </div>
       </div>
 
       <div className="mt-10 grid gap-6 sm:grid-cols-3">
@@ -82,6 +96,29 @@ export default async function DashboardPage({
         </div>
       </div>
 
+      {projects.length > 0 && (
+        <div className="mt-14">
+          <div className="flex items-center justify-between">
+            <h2 className="font-heading text-xl font-semibold text-white">Your Projects</h2>
+            <Link href="/projects" className="text-xs font-semibold text-violet-300 transition-colors hover:text-violet-200">
+              View all
+            </Link>
+          </div>
+          <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {projects.map((project) => (
+              <Link key={project.id} href={`/projects/${project.id}`} className="tilt-card group glass-panel p-5" data-tilt>
+                <p className="truncate font-heading text-sm font-semibold text-white">{project.title}</p>
+                <div className="mt-3 flex flex-wrap gap-x-2 gap-y-1 text-xs text-zinc-500">
+                  <span>{project._count.characters} characters</span>
+                  <span>•</span>
+                  <span>{project._count.episodes} episodes</span>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="mt-14 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
         {videos.length === 0 ? (
           <div className="glass-panel col-span-full p-12 text-center">
@@ -114,6 +151,11 @@ export default async function DashboardPage({
                   />
                   {video.status.replace(/_/g, " ")}
                 </span>
+                {video.project && (
+                  <span className="absolute right-3 top-3 rounded-full bg-violet-500/80 px-3 py-1 text-[10px] uppercase tracking-wide text-white backdrop-blur">
+                    {video.project.title}
+                  </span>
+                )}
               </div>
               <div className="p-4">
                 <p className="truncate text-sm text-zinc-300">

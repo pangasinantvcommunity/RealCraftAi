@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir -p /tmp/rc-download-test)",
+      "Bash(npm install *)"
+    ]
+  }
+}

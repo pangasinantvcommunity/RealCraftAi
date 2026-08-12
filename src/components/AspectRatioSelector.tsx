@@ -1,9 +1,8 @@
 "use client";
 
-export const ASPECT_RATIOS = [
-  { value: "9:16", label: "9:16 Vertical" },
-  { value: "16:9", label: "16:9 Horizontal" },
-] as const;
+import { ASPECT_RATIOS } from "@/lib/story-options";
+
+export { ASPECT_RATIOS };
 
 export default function AspectRatioSelector({
   value,

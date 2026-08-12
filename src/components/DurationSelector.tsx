@@ -1,6 +1,8 @@
 "use client";
 
-export const STORY_DURATIONS = [30, 45, 60];
+import { STORY_DURATIONS } from "@/lib/story-options";
+
+export { STORY_DURATIONS };
 
 export default function DurationSelector({
   value,

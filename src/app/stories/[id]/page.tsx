@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { progressPercent } from "@/lib/story";
 import StatusPoller from "@/components/StatusPoller";
 import StoryPreview from "@/components/StoryPreview";
+import type { RuntimeStructure } from "@/types/project";
 
 export default async function StoryPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
@@ -11,7 +12,11 @@ export default async function StoryPage({ params }: { params: Promise<{ id: stri
 
   const video = await prisma.video.findUnique({
     where: { id },
-    include: { scenes: { orderBy: { sceneOrder: "asc" } } },
+    include: {
+      scenes: { orderBy: { sceneOrder: "asc" } },
+      characters: { orderBy: { sortOrder: "asc" } },
+      project: { include: { locations: { orderBy: { createdAt: "asc" } } } },
+    },
   });
 
   if (!video || video.userId !== session!.user.id) {
@@ -19,6 +24,7 @@ export default async function StoryPage({ params }: { params: Promise<{ id: stri
   }
 
   const emotionalArc = Array.isArray(video.emotionalArc) ? (video.emotionalArc as string[]) : [];
+  const runtimeStructure = (video.project?.runtimeStructure as RuntimeStructure | null) ?? null;
 
   if (video.status === "completed" && video.videoUrl) {
     return (
@@ -27,11 +33,17 @@ export default async function StoryPage({ params }: { params: Promise<{ id: stri
         videoUrl={video.videoUrl}
         posterUrl={video.scenes[0]?.imageUrl ?? null}
         title={video.title}
+        projectTitle={video.project?.title ?? null}
         summary={video.summary}
         emotionalArc={emotionalArc}
         transcript={video.transcript}
         scenes={video.scenes.map((s) => ({ subtitle: s.subtitle, imageUrl: s.imageUrl }))}
         aspectRatio={video.aspectRatio}
+        characters={video.characters.map((c) => ({ name: c.name, imageUrl: c.imageUrl }))}
+        locations={video.project?.locations.map((l) => ({ name: l.name, imageUrl: l.imageUrl })) ?? []}
+        runtimeStructure={runtimeStructure}
+        sceneCount={video.scenes.length}
+        partsPerEpisode={runtimeStructure?.partsPerEpisode ?? null}
       />
     );
   }

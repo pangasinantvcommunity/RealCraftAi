@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { remainingCredits } from "@/lib/story";
-import CreateStoryTabs from "@/components/CreateStoryTabs";
+import PromptStoryForm from "@/components/PromptStoryForm";
 
 export default async function CreateStoryPage() {
   const session = await auth();
@@ -21,7 +21,7 @@ export default async function CreateStoryPage() {
           <p className="mt-2 text-zinc-400">{credits} {credits === 1 ? "credit" : "credits"} remaining today</p>
         </div>
 
-        <CreateStoryTabs />
+        <PromptStoryForm />
       </div>
     </section>
   );

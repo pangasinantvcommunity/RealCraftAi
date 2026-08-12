@@ -1,11 +1,8 @@
 "use client";
 
-export const STORY_STYLES = [
-  { value: "3d-cinematic", label: "3D Cinematic" },
-  { value: "anime", label: "Anime" },
-  { value: "cartoon", label: "Cartoon" },
-  { value: "realistic", label: "Realistic" },
-];
+import { STORY_STYLES } from "@/lib/story-options";
+
+export { STORY_STYLES };
 
 export default function StyleSelector({
   value,

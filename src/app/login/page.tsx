@@ -30,6 +30,7 @@ export default function LoginPage() {
     }
 
     router.push(searchParams.get("callbackUrl") || "/dashboard");
+    router.refresh();
   }
 
   return (

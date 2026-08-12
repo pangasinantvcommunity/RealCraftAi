@@ -1,4 +1,4 @@
-import type { CharacterInput, ProcessedScene, ProcessedStory } from "@/lib/story-pipeline";
+import type { CharacterInput, LocationInput, ProcessedScene, ProcessedStory } from "@/lib/story-pipeline";
 
 const STOP_WORDS = new Set(["The", "A", "An", "In", "On", "At", "Once", "When", "This", "That", "It", "He", "She", "They"]);
 
@@ -57,21 +57,33 @@ export function generateMockStory(
   prompt: string,
   style: string,
   duration: number,
-  characterInputs?: CharacterInput[],
+  options?: {
+    characters?: CharacterInput[];
+    locations?: LocationInput[];
+    storyBible?: string;
+    sceneCount?: number;
+  },
 ): ProcessedStory {
+  const { characters: characterInputs, locations: locationInputs, storyBible, sceneCount = 6 } = options ?? {};
+
   const words = extractCapitalizedWords(prompt);
   const title = deriveTitle(prompt);
 
-  const summary = prompt.length > 220 ? prompt.slice(0, 217).trimEnd() + "..." : prompt || "A cinematic story waiting to be told.";
+  const baseSummary = prompt.length > 220 ? prompt.slice(0, 217).trimEnd() + "..." : prompt || "A cinematic story waiting to be told.";
+  const summary = storyBible ? `${baseSummary} (continuing: ${storyBible.slice(0, 120)}${storyBible.length > 120 ? "..." : ""})` : baseSummary;
   const characters =
     characterInputs && characterInputs.length > 0
       ? characterInputs.map((c) => c.name)
       : words.length > 0
         ? words.slice(0, 3)
         : ["The Protagonist"];
-  const locations = words.length > 3 ? words.slice(3, 6) : ["An Unknown Place"];
+  const locations =
+    locationInputs && locationInputs.length > 0
+      ? locationInputs.map((l) => l.name)
+      : words.length > 3
+        ? words.slice(3, 6)
+        : ["An Unknown Place"];
 
-  const sceneCount = 6;
   const sceneDuration = Math.max(1, Math.round(duration / sceneCount));
   const sentences = splitIntoSentences(prompt);
 

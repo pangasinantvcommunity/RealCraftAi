@@ -11,7 +11,7 @@ const FONT_PATH = path.join(process.cwd(), "node_modules/dejavu-fonts-ttf/ttf/De
 
 const run = promisify(execFile);
 
-const SCENE_DURATION = 9;
+const DEFAULT_SCENE_DURATION = 9;
 const FPS = 30;
 const FFMPEG_TIMEOUT_MS = Number(process.env.FFMPEG_TIMEOUT ?? 600) * 1000;
 
@@ -42,13 +42,14 @@ async function renderSceneSegment(
   index: number,
   workDir: string,
   dimensions: { width: number; height: number },
+  sceneDuration: number,
 ): Promise<string> {
   const { width, height } = dimensions;
   const imagePath = path.join(workDir, `scene_${index}_source.png`);
   await downloadToFile(scene.imageUrl, imagePath);
 
   const outputPath = path.join(workDir, `scene_${index}.mp4`);
-  const totalFrames = SCENE_DURATION * FPS;
+  const totalFrames = sceneDuration * FPS;
 
   const zoomExpr =
     index % 2 === 0
@@ -73,7 +74,7 @@ async function renderSceneSegment(
       "-loop", "1",
       "-i", imagePath,
       "-vf", filter,
-      "-t", String(SCENE_DURATION),
+      "-t", String(sceneDuration),
       "-r", String(FPS),
       "-pix_fmt", "yuv420p",
       "-c:v", "libx264",
@@ -86,9 +87,9 @@ async function renderSceneSegment(
   return outputPath;
 }
 
-async function crossfadeSegments(segmentPaths: string[], outputPath: string) {
+async function crossfadeSegments(segmentPaths: string[], outputPath: string, sceneDuration: number) {
   const transition = 1.0;
-  const duration = SCENE_DURATION;
+  const duration = sceneDuration;
 
   const inputs = segmentPaths.flatMap((p) => ["-i", p]);
   const filterParts: string[] = [];
@@ -171,6 +172,7 @@ export async function renderStoryVideo(
   scenes: SceneInput[],
   narrationUrl: string | null,
   aspectRatio: string = "9:16",
+  sceneDurationSeconds: number = DEFAULT_SCENE_DURATION,
 ): Promise<string> {
   if (isDevMode) {
     throw new Error("FFmpeg render worker disabled in development mode");
@@ -178,17 +180,18 @@ export async function renderStoryVideo(
 
   if (scenes.length === 0) throw new Error("Cannot render a video with no scenes.");
 
+  const sceneDuration = Math.min(30, Math.max(3, Math.round(sceneDurationSeconds)));
   const dimensions = dimensionsFor(aspectRatio);
   const workDir = await mkdtemp(path.join(tmpdir(), "realcraft-render-"));
 
   try {
     const segmentPaths: string[] = [];
     for (let i = 0; i < scenes.length; i++) {
-      segmentPaths.push(await renderSceneSegment(scenes[i], i, workDir, dimensions));
+      segmentPaths.push(await renderSceneSegment(scenes[i], i, workDir, dimensions, sceneDuration));
     }
 
     const silentPath = path.join(workDir, "combined_silent.mp4");
-    await crossfadeSegments(segmentPaths, silentPath);
+    await crossfadeSegments(segmentPaths, silentPath, sceneDuration);
 
     let narrationPath: string | null = null;
     if (narrationUrl) {

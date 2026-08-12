@@ -19,7 +19,13 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     return NextResponse.json({ error: "Video is not ready yet." }, { status: 409 });
   }
 
-  const response = await fetch(video.videoUrl);
+  // video.videoUrl is a root-relative path in dev mode (served from public/,
+  // e.g. "/demo/demo-story.mp4") but a full https:// Blob URL in production —
+  // Node's server-side fetch throws on a relative URL with no base, so
+  // resolve it against the current request's origin first.
+  const absoluteUrl = new URL(video.videoUrl, request.nextUrl.origin).toString();
+
+  const response = await fetch(absoluteUrl);
   if (!response.ok || !response.body) {
     return NextResponse.json({ error: "Could not fetch video." }, { status: 502 });
   }

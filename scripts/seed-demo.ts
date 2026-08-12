@@ -7,8 +7,7 @@
  */
 import bcrypt from "bcryptjs";
 import { PrismaClient } from "@prisma/client";
-import { generateMockScenes } from "../src/lib/mock-scene-generator";
-import { MOCK_TRANSCRIPT } from "../src/lib/mock-data";
+import { generateMockStory, getMockSceneImageUrl, slugify } from "../src/lib/mock-story";
 import { MOCK_VIDEO_URL } from "../src/lib/mock-video";
 
 const prisma = new PrismaClient();
@@ -16,6 +15,12 @@ const prisma = new PrismaClient();
 const DEMO_USER_EMAIL = "demo@realcraft.ai";
 const DEMO_USER_PASSWORD = "DemoPassword123!";
 const DAY_MS = 24 * 60 * 60 * 1000;
+
+const DEMO_PROMPTS = [
+  "A glowing lantern guides a lost child through a mysterious enchanted forest at night.",
+  "Two rival musicians discover their village is powered by a hidden magical light source.",
+  "A young explorer journeys through a bioluminescent forest to find a legendary song.",
+];
 
 async function main() {
   const passwordHash = await bcrypt.hash(DEMO_USER_PASSWORD, 12);
@@ -29,42 +34,42 @@ async function main() {
   await prisma.video.deleteMany({ where: { userId: user.id } });
 
   const now = Date.now();
-  const titles = [
-    "The Glowing Lantern",
-    "Journey Through the Enchanted Forest",
-    "The Village of Music and Light",
-  ];
 
-  for (let i = 0; i < 3; i++) {
+  for (let i = 0; i < DEMO_PROMPTS.length; i++) {
     const createdAt = new Date(now - (i + 1) * DAY_MS);
-    const mockScenes = generateMockScenes();
+    const story = generateMockStory(DEMO_PROMPTS[i], "3d-cinematic", 45);
+    const titleSlug = slugify(story.title);
 
     const video = await prisma.video.create({
       data: {
         userId: user.id,
         status: "completed",
-        audioUrl: `dev-mode://local-placeholder/${titles[i].toLowerCase().replace(/\s+/g, "-")}.webm`,
-        transcript: MOCK_TRANSCRIPT,
+        prompt: DEMO_PROMPTS[i],
+        style: "3d-cinematic",
+        targetDuration: 45,
+        aspectRatio: "9:16",
+        title: story.title,
+        summary: story.summary,
+        emotionalArc: story.emotionalArc,
         videoUrl: MOCK_VIDEO_URL,
-        durationSeconds: 8,
-        metadata: { devMode: true, seeded: true, title: titles[i] },
+        metadata: { devMode: true, seeded: true },
         createdAt,
         updatedAt: createdAt,
       },
     });
 
     await prisma.scene.createMany({
-      data: mockScenes.map((scene) => ({
+      data: story.scenes.map((scene) => ({
         videoId: video.id,
         sceneOrder: scene.order,
-        prompt: scene.prompt,
+        prompt: scene.imagePrompt,
         subtitle: scene.subtitle,
-        imageUrl: scene.imageUrl,
+        imageUrl: getMockSceneImageUrl(`${titleSlug}-scene-${scene.order}`),
       })),
     });
   }
 
-  console.log(`Seeded 3 demo videos for ${DEMO_USER_EMAIL} (password: ${DEMO_USER_PASSWORD})`);
+  console.log(`Seeded ${DEMO_PROMPTS.length} demo videos for ${DEMO_USER_EMAIL} (password: ${DEMO_USER_PASSWORD})`);
 }
 
 main()

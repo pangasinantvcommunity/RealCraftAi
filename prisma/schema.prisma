@@ -19,14 +19,15 @@ enum VideoStatus {
 }
 
 model User {
-  id            String   @id @default(uuid())
-  name          String
-  email         String   @unique
-  passwordHash  String   @map("password_hash")
-  createdAt     DateTime @default(now()) @map("created_at")
-  updatedAt     DateTime @updatedAt @map("updated_at")
+  id           String   @id @default(uuid())
+  name         String
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
 
-  videos Video[]
+  videos   Video[]
+  projects Project[]
 
   @@map("users")
 }
@@ -51,13 +52,16 @@ model Video {
   summary        String?
   emotionalArc   Json?   @map("emotional_arc")
   aspectRatio    String  @default("9:16") @map("aspect_ratio")
+  projectId      String? @map("project_id")
 
   user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project    Project?    @relation(fields: [projectId], references: [id])
   scenes     Scene[]
   characters Character[]
 
   @@index([userId])
   @@index([status])
+  @@index([projectId])
   @@map("videos")
 }
 
@@ -92,4 +96,65 @@ model Character {
 
   @@index([videoId])
   @@map("characters")
+}
+
+model Project {
+  id               String   @id @default(uuid())
+  userId           String   @map("user_id")
+  title            String
+  synopsis         String?
+  storyBible       String?  @map("story_bible")
+  runtimeStructure Json?    @map("runtime_structure")
+  visualStyle      String   @default("3d-cinematic") @map("visual_style")
+  aspectRatio      String   @default("9:16") @map("aspect_ratio")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  user       User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  characters ProjectCharacter[]
+  locations  ProjectLocation[]
+  episodes   Video[]
+
+  @@index([userId])
+  @@index([title])
+  @@map("projects")
+}
+
+model ProjectCharacter {
+  id             String   @id @default(uuid())
+  projectId      String   @map("project_id")
+  name           String
+  age            String?
+  gender         String?
+  appearance     String
+  wardrobe       String?
+  personality    String?
+  role           String?
+  relationships  String?
+  voiceTone      String?  @map("voice_tone")
+  cinematicNotes String?  @map("cinematic_notes")
+  imageUrl       String?  @map("image_url")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+  @@index([name])
+  @@map("project_characters")
+}
+
+model ProjectLocation {
+  id          String   @id @default(uuid())
+  projectId   String   @map("project_id")
+  name        String
+  description String
+  mood        String?
+  imageUrl    String?  @map("image_url")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+  @@index([name])
+  @@map("project_locations")
 }

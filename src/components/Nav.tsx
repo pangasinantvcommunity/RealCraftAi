@@ -2,12 +2,20 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
+import { useSession, signOut } from "next-auth/react";
 import DevModeBadge from "@/components/DevModeBadge";
 
 export default function Nav() {
   const [scrolled, setScrolled] = useState(false);
   const { data: session } = useSession();
+  const router = useRouter();
+
+  const handleLogout = async () => {
+    await signOut({ redirect: false });
+    router.push("/");
+    router.refresh();
+  };
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 24);
@@ -41,9 +49,18 @@ export default function Nav() {
         <div className="flex items-center gap-3">
           <DevModeBadge />
           {session ? (
-            <Link href="/dashboard" className="btn-secondary !px-5 !py-2 text-xs">
-              Dashboard
-            </Link>
+            <>
+              <Link href="/dashboard" className="btn-secondary !px-5 !py-2 text-xs">
+                Dashboard
+              </Link>
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="text-sm text-zinc-300 transition-colors hover:text-white"
+              >
+                Log out
+              </button>
+            </>
           ) : (
             <>
               <Link href="/login" className="text-sm text-zinc-300 hover:text-white transition-colors">
