@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
+import DevModeBadge from "@/components/DevModeBadge";
 
 export default function Nav() {
   const [scrolled, setScrolled] = useState(false);
@@ -38,6 +39,7 @@ export default function Nav() {
         </div>
 
         <div className="flex items-center gap-3">
+          <DevModeBadge />
           {session ? (
             <Link href="/dashboard" className="btn-secondary !px-5 !py-2 text-xs">
               Dashboard

@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { remainingCredits } from "@/lib/story";
 import { storyConfig } from "@/lib/config";
 import UpgradeModal from "@/components/UpgradeModal";
+import DevModeBadge from "@/components/DevModeBadge";
 
 export default async function DashboardPage({
   searchParams,
@@ -31,8 +32,11 @@ export default async function DashboardPage({
 
       <div className="flex flex-col items-start justify-between gap-6 sm:flex-row sm:items-center">
         <div>
-          <h1 className="cinematic-heading font-heading text-3xl font-bold sm:text-4xl">Your Stories</h1>
-          <p className="mt-2 text-zinc-400">{totalCount} cinematic {totalCount === 1 ? "story" : "stories"} created so far.</p>
+          <div className="mb-2 flex items-center gap-3">
+            <h1 className="cinematic-heading font-heading text-3xl font-bold sm:text-4xl">Your Stories</h1>
+            <DevModeBadge />
+          </div>
+          <p className="text-zinc-400">{totalCount} cinematic {totalCount === 1 ? "story" : "stories"} created so far.</p>
         </div>
         <Link href="/stories/create" className="btn-primary">+ Create Story</Link>
       </div>

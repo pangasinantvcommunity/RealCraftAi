@@ -3,6 +3,9 @@
 import { useEffect, useRef } from "react";
 import Link from "next/link";
 import gsap from "gsap";
+import { isDevMode } from "@/lib/config";
+
+export type PreviewScene = { subtitle: string; imageUrl: string | null };
 
 function useMagnetic() {
   useEffect(() => {
@@ -36,10 +39,14 @@ export default function StoryPreview({
   videoId,
   videoUrl,
   posterUrl,
+  transcript,
+  scenes,
 }: {
   videoId: string;
   videoUrl: string;
   posterUrl: string | null;
+  transcript?: string | null;
+  scenes?: PreviewScene[];
 }) {
   useMagnetic();
   const shareUrlRef = useRef<string>("");
@@ -71,9 +78,43 @@ export default function StoryPreview({
       <div className="relative z-10 mt-10">
         <div className="pointer-events-none absolute -inset-8 rounded-[2rem] bg-gradient-to-br from-violet-500/30 to-cyan-500/30 blur-3xl" />
         <div className="relative aspect-[9/16] w-[320px] overflow-hidden rounded-3xl border border-white/10 shadow-glow sm:w-[360px]">
-          <video className="h-full w-full object-cover" src={videoUrl} controls playsInline poster={posterUrl ?? undefined} />
+          <video
+            className="h-full w-full object-cover"
+            src={videoUrl}
+            controls
+            playsInline
+            autoPlay={isDevMode}
+            muted={isDevMode}
+            loop={isDevMode}
+            poster={posterUrl ?? undefined}
+          />
         </div>
       </div>
+
+      {transcript && (
+        <div className="glass-panel relative z-10 mt-10 w-full max-w-xl p-6">
+          <p className="text-xs uppercase tracking-wide text-zinc-500">Transcript</p>
+          <p className="mt-2 text-sm leading-relaxed text-zinc-300">{transcript}</p>
+        </div>
+      )}
+
+      {scenes && scenes.length > 0 && (
+        <div className="relative z-10 mt-8 w-full max-w-3xl">
+          <p className="mb-3 text-center text-xs uppercase tracking-wide text-zinc-500">Scenes</p>
+          <div className="grid grid-cols-3 gap-3 sm:grid-cols-6">
+            {scenes.map((scene, i) => (
+              <div key={i} className="glass-panel aspect-[9/16] overflow-hidden">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                {scene.imageUrl ? (
+                  <img src={scene.imageUrl} alt={scene.subtitle} className="h-full w-full object-cover" />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center text-lg">🎞️</div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="relative z-10 mt-10 flex flex-col items-center gap-4 sm:flex-row">
         <a href={`/api/stories/${videoId}/download`} data-magnetic className="btn-primary">

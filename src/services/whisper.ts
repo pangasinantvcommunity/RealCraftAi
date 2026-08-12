@@ -1,9 +1,14 @@
 import OpenAI from "openai";
 import { toFile } from "openai/uploads";
+import { isDevMode } from "@/lib/config";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 export async function transcribeAudio(audioBuffer: Buffer, filename: string): Promise<string> {
+  if (isDevMode) {
+    throw new Error("OpenAI API disabled in development mode");
+  }
+
   const response = await openai.audio.transcriptions.create({
     model: process.env.OPENAI_WHISPER_MODEL ?? "whisper-1",
     file: await toFile(audioBuffer, filename),

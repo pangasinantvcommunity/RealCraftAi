@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import ffmpegPath from "@ffmpeg-installer/ffmpeg";
 import { uploadVideo } from "@/lib/storage";
+import { isDevMode } from "@/lib/config";
 
 const FONT_PATH = path.join(process.cwd(), "node_modules/dejavu-fonts-ttf/ttf/DejaVuSans-Bold.ttf");
 
@@ -147,6 +148,10 @@ async function muxAudioAndFinalize(
 }
 
 export async function renderStoryVideo(scenes: SceneInput[], narrationUrl: string): Promise<string> {
+  if (isDevMode) {
+    throw new Error("FFmpeg render worker disabled in development mode");
+  }
+
   if (scenes.length === 0) throw new Error("Cannot render a video with no scenes.");
 
   const workDir = await mkdtemp(path.join(tmpdir(), "realcraft-render-"));

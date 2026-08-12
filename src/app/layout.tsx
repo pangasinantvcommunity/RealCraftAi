@@ -7,6 +7,7 @@ import SmoothScroll from "@/components/SmoothScroll";
 import Nav from "@/components/Nav";
 import Footer from "@/components/Footer";
 import ToastStack from "@/components/ToastStack";
+import DevModeBanner from "@/components/DevModeBanner";
 
 const spaceGrotesk = Space_Grotesk({
   subsets: ["latin"],
@@ -59,6 +60,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           <main>{children}</main>
           <Footer />
           <ToastStack />
+          <DevModeBanner />
         </AuthProvider>
       </body>
     </html>

@@ -20,6 +20,51 @@ npx prisma db push     # or: npx prisma migrate deploy
 npm run dev
 ```
 
+## Free Local Development (Dev Mode)
+
+You can develop and test the entire product locally for **$0** — no OpenAI key,
+no Blob storage, no Inngest account — using the built-in mock/dev mode:
+
+```bash
+npm install
+cp .env.example .env   # NEXT_PUBLIC_DEV_MODE=true by default
+npm run dev
+```
+
+That's it. No `OPENAI_API_KEY`, `BLOB_READ_WRITE_TOKEN`, or Inngest keys are
+required while `NEXT_PUBLIC_DEV_MODE=true` (you still need `DATABASE_URL` /
+`DIRECT_URL` pointed at a real Postgres — Neon has a free tier — since dev
+mode still exercises real database writes, just no paid AI/render calls).
+
+With dev mode on:
+
+- Creating a story skips Whisper, image generation, and FFmpeg entirely —
+  scenes are populated with a fixed mock transcript and deterministic
+  [Picsum](https://picsum.photos) placeholder images (`src/lib/mock-data.ts`,
+  `src/lib/mock-scene-generator.ts`).
+- The generation-status page shows a realistic ~8 second progress animation
+  (`src/lib/mock-progress.ts`) before landing on a completed preview.
+- The "video" is a small pre-rendered placeholder MP4
+  (`public/demo/demo-story.mp4`) — fully downloadable, no rendering cost.
+- A **DEV MODE** badge appears in the nav/dashboard, plus a floating
+  "No API credits are being used" banner, so it's never ambiguous which mode
+  you're in.
+- `src/services/whisper.ts`, `image-generation.ts`, and `video-render.ts` all
+  throw immediately if somehow invoked while dev mode is on, as a safety net
+  against accidental billing.
+
+Want the dashboard pre-populated instead of starting empty? Run:
+
+```bash
+npm run seed:demo
+```
+
+This upserts a `demo@realcraft.ai` user (password printed to the console) with
+3 completed demo videos.
+
+Set `NEXT_PUBLIC_DEV_MODE=false` (and fill in the real API keys below) to
+exercise the actual OpenAI/FFmpeg/Inngest pipeline.
+
 ## Required environment variables
 
 See `.env.example` for the full list. Notes on the trickier ones:

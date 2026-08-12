@@ -11,7 +11,7 @@ export default async function StoryPage({ params }: { params: Promise<{ id: stri
 
   const video = await prisma.video.findUnique({
     where: { id },
-    include: { scenes: { orderBy: { sceneOrder: "asc" }, take: 1 } },
+    include: { scenes: { orderBy: { sceneOrder: "asc" } } },
   });
 
   if (!video || video.userId !== session!.user.id) {
@@ -24,6 +24,8 @@ export default async function StoryPage({ params }: { params: Promise<{ id: stri
         videoId={video.id}
         videoUrl={video.videoUrl}
         posterUrl={video.scenes[0]?.imageUrl ?? null}
+        transcript={video.transcript}
+        scenes={video.scenes.map((s) => ({ subtitle: s.subtitle, imageUrl: s.imageUrl }))}
       />
     );
   }

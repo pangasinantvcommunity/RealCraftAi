@@ -1,3 +1,6 @@
+export const isDevMode = process.env.NEXT_PUBLIC_DEV_MODE === "true";
+export const isProductionMode = !isDevMode;
+
 export const storyConfig = {
   dailyFreeCredits: Number(process.env.STORY_DAILY_FREE_CREDITS ?? 3),
   maxUploadMb: Number(process.env.STORY_MAX_UPLOAD_MB ?? 25),
