@@ -2,10 +2,14 @@ import { inngest } from "./client";
 import { prisma } from "@/lib/prisma";
 import { transcribeAudio } from "@/services/whisper";
 import { splitTranscriptIntoScenes } from "@/services/scene-splitter";
-import { generateSceneImage } from "@/services/image-generation";
+import { generateSceneImage, type ImageSize } from "@/services/image-generation";
 import { renderStoryVideo } from "@/services/video-render";
 import { uploadImage } from "@/lib/storage";
 import { storyConfig } from "@/lib/config";
+
+function imageSizeFor(aspectRatio: string): ImageSize {
+  return aspectRatio === "16:9" ? "1536x1024" : "1024x1536";
+}
 
 export const generateStoryVideo = inngest.createFunction(
   { id: "generate-story-video", retries: 1 },
@@ -15,7 +19,7 @@ export const generateStoryVideo = inngest.createFunction(
 
     try {
       const initialVideo = await step.run("load-video", async () => {
-        return prisma.video.findUniqueOrThrow({ where: { id: videoId } });
+        return prisma.video.findUniqueOrThrow({ where: { id: videoId }, include: { characters: true } });
       });
 
       // Prompt-originated videos already have their scenes created
@@ -66,9 +70,12 @@ export const generateStoryVideo = inngest.createFunction(
       await step.run("generate-images", async () => {
         await prisma.video.update({ where: { id: videoId }, data: { status: "generating_images" } });
 
+        const imageSize = imageSizeFor(initialVideo.aspectRatio);
+        const referenceImageUrls = initialVideo.characters.map((c) => c.imageUrl);
+
         for (const scene of scenes) {
           if (scene.imageUrl) continue;
-          const imageBuffer = await generateSceneImage(scene.prompt);
+          const imageBuffer = await generateSceneImage(scene.prompt, { size: imageSize, referenceImageUrls });
           const imageUrl = await uploadImage(imageBuffer);
           await prisma.scene.update({ where: { id: scene.id }, data: { imageUrl } });
         }
@@ -90,6 +97,7 @@ export const generateStoryVideo = inngest.createFunction(
             imageUrl: s.imageUrl!,
           })),
           video.audioUrl,
+          video.aspectRatio,
         );
       });
 

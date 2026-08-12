@@ -19,6 +19,8 @@ export type ProcessedStory = {
   scenes: ProcessedScene[];
 };
 
+export type CharacterInput = { name: string; description?: string };
+
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 export function normalizePrompt(prompt: string): string {
@@ -41,6 +43,7 @@ export async function processPrompt(input: {
   prompt: string;
   style: string;
   duration: number;
+  characters?: CharacterInput[];
 }): Promise<ProcessedStory> {
   const prompt = normalizePrompt(input.prompt);
   if (!prompt) {
@@ -48,19 +51,36 @@ export async function processPrompt(input: {
   }
 
   if (isDevMode) {
-    return generateMockStory(prompt, input.style, input.duration);
+    return generateMockStory(prompt, input.style, input.duration, input.characters);
   }
 
-  return generateStoryWithOpenAI(prompt, input.style, input.duration);
+  return generateStoryWithOpenAI(prompt, input.style, input.duration, input.characters);
 }
 
-async function generateStoryWithOpenAI(prompt: string, style: string, duration: number): Promise<ProcessedStory> {
+function formatCharacterBrief(characters: CharacterInput[]): string {
+  return characters
+    .map((c) => (c.description ? `${c.name} — ${c.description}` : c.name))
+    .join(". ");
+}
+
+async function generateStoryWithOpenAI(
+  prompt: string,
+  style: string,
+  duration: number,
+  characters?: CharacterInput[],
+): Promise<ProcessedStory> {
   if (isDevMode) {
     throw new Error("OpenAI API disabled in development mode");
   }
 
   const sceneCount = 6;
   const sceneDuration = Math.max(1, Math.round(duration / sceneCount));
+
+  const characterInstruction =
+    characters && characters.length > 0
+      ? `\n\nCharacters (use exactly these names, and keep each character's described appearance and traits ` +
+        `consistent in every imagePrompt where they appear): ${formatCharacterBrief(characters)}`
+      : "";
 
   const completion = await openai.chat.completions.create({
     model: process.env.OPENAI_TEXT_MODEL ?? "gpt-4o-mini",
@@ -77,7 +97,10 @@ async function generateStoryWithOpenAI(prompt: string, style: string, duration: 
           "with exactly 6 scenes covering the story beginning to end. imagePrompt should be a vivid, " +
           "cinematic image-generation prompt for that scene in the requested visual style.",
       },
-      { role: "user", content: `Style: ${style}\nTarget duration: ${duration} seconds\n\nPrompt:\n${prompt}` },
+      {
+        role: "user",
+        content: `Style: ${style}\nTarget duration: ${duration} seconds${characterInstruction}\n\nPrompt:\n${prompt}`,
+      },
     ],
   });
 

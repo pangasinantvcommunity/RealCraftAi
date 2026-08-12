@@ -12,12 +12,14 @@ const FONT_PATH = path.join(process.cwd(), "node_modules/dejavu-fonts-ttf/ttf/De
 const run = promisify(execFile);
 
 const SCENE_DURATION = 9;
-const WIDTH = 1080;
-const HEIGHT = 1920;
 const FPS = 30;
 const FFMPEG_TIMEOUT_MS = Number(process.env.FFMPEG_TIMEOUT ?? 600) * 1000;
 
 type SceneInput = { order: number; subtitle: string; imageUrl: string };
+
+function dimensionsFor(aspectRatio: string): { width: number; height: number } {
+  return aspectRatio === "16:9" ? { width: 1920, height: 1080 } : { width: 1080, height: 1920 };
+}
 
 async function downloadToFile(url: string, destPath: string) {
   const response = await fetch(url);
@@ -35,7 +37,13 @@ function escapeDrawtext(text: string): string {
   return escaped.slice(0, 140);
 }
 
-async function renderSceneSegment(scene: SceneInput, index: number, workDir: string): Promise<string> {
+async function renderSceneSegment(
+  scene: SceneInput,
+  index: number,
+  workDir: string,
+  dimensions: { width: number; height: number },
+): Promise<string> {
+  const { width, height } = dimensions;
   const imagePath = path.join(workDir, `scene_${index}_source.png`);
   await downloadToFile(scene.imageUrl, imagePath);
 
@@ -50,9 +58,9 @@ async function renderSceneSegment(scene: SceneInput, index: number, workDir: str
   const subtitle = escapeDrawtext(scene.subtitle);
 
   const filter = [
-    `scale=${WIDTH * 2}:${HEIGHT * 2}:force_original_aspect_ratio=increase`,
-    `crop=${WIDTH * 2}:${HEIGHT * 2}`,
-    `zoompan=${zoomExpr}:d=${totalFrames}:s=${WIDTH}x${HEIGHT}:fps=${FPS}`,
+    `scale=${width * 2}:${height * 2}:force_original_aspect_ratio=increase`,
+    `crop=${width * 2}:${height * 2}`,
+    `zoompan=${zoomExpr}:d=${totalFrames}:s=${width}x${height}:fps=${FPS}`,
     `drawtext=text='${subtitle}':fontfile=${FONT_PATH}:` +
       `fontsize=54:fontcolor=white:borderw=4:bordercolor=black:x=(w-text_w)/2:y=h-th-160:line_spacing=10:box=0`,
     `vignette=PI/5`,
@@ -159,19 +167,24 @@ async function muxAudioAndFinalize(
   );
 }
 
-export async function renderStoryVideo(scenes: SceneInput[], narrationUrl: string | null): Promise<string> {
+export async function renderStoryVideo(
+  scenes: SceneInput[],
+  narrationUrl: string | null,
+  aspectRatio: string = "9:16",
+): Promise<string> {
   if (isDevMode) {
     throw new Error("FFmpeg render worker disabled in development mode");
   }
 
   if (scenes.length === 0) throw new Error("Cannot render a video with no scenes.");
 
+  const dimensions = dimensionsFor(aspectRatio);
   const workDir = await mkdtemp(path.join(tmpdir(), "realcraft-render-"));
 
   try {
     const segmentPaths: string[] = [];
     for (let i = 0; i < scenes.length; i++) {
-      segmentPaths.push(await renderSceneSegment(scenes[i], i, workDir));
+      segmentPaths.push(await renderSceneSegment(scenes[i], i, workDir, dimensions));
     }
 
     const silentPath = path.join(workDir, "combined_silent.mp4");

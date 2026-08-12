@@ -22,6 +22,32 @@ const ALLOWED_MIME_TYPES = [
 ];
 
 const MAX_PROMPT_LENGTH = 10000;
+const VALID_ASPECT_RATIOS = ["9:16", "16:9"];
+
+type ParsedCharacter = { name: string; description: string; imageUrl: string };
+
+function parseCharacters(input: unknown): ParsedCharacter[] {
+  if (!Array.isArray(input)) return [];
+
+  const result: ParsedCharacter[] = [];
+  for (const item of input) {
+    if (
+      item &&
+      typeof item === "object" &&
+      typeof item.name === "string" &&
+      item.name.trim().length > 0 &&
+      typeof item.imageUrl === "string"
+    ) {
+      result.push({
+        name: item.name.trim().slice(0, 60),
+        description: typeof item.description === "string" ? item.description.trim().slice(0, 200) : "",
+        imageUrl: item.imageUrl,
+      });
+    }
+  }
+
+  return result.slice(0, storyConfig.maxCharacters);
+}
 
 export async function POST(request: NextRequest) {
   const session = await auth();
@@ -50,6 +76,9 @@ async function handlePromptStory(request: NextRequest, userId: string) {
   const prompt = typeof body?.prompt === "string" ? body.prompt.trim() : "";
   const style = typeof body?.style === "string" ? body.style : "3d-cinematic";
   const duration = Number.isFinite(body?.duration) ? Number(body.duration) : 45;
+  const aspectRatio = VALID_ASPECT_RATIOS.includes(body?.aspectRatio) ? body.aspectRatio : "9:16";
+
+  const characters = parseCharacters(body?.characters);
 
   if (!prompt) {
     return NextResponse.json({ error: "Please describe a story before generating." }, { status: 422 });
@@ -58,7 +87,7 @@ async function handlePromptStory(request: NextRequest, userId: string) {
     return NextResponse.json({ error: `Prompts must be under ${MAX_PROMPT_LENGTH.toLocaleString()} characters.` }, { status: 422 });
   }
 
-  const story = await processPrompt({ prompt, style, duration });
+  const story = await processPrompt({ prompt, style, duration, characters });
 
   const video = await prisma.video.create({
     data: {
@@ -67,12 +96,25 @@ async function handlePromptStory(request: NextRequest, userId: string) {
       prompt,
       style,
       targetDuration: duration,
+      aspectRatio,
       title: story.title,
       summary: story.summary,
       emotionalArc: story.emotionalArc,
       metadata: isDevMode ? { devMode: true } : undefined,
     },
   });
+
+  if (characters.length > 0) {
+    await prisma.character.createMany({
+      data: characters.map((c, i) => ({
+        videoId: video.id,
+        name: c.name,
+        description: c.description || null,
+        imageUrl: c.imageUrl,
+        sortOrder: i,
+      })),
+    });
+  }
 
   const titleSlug = slugify(story.title);
   await prisma.scene.createMany({

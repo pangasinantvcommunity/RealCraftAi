@@ -50,9 +50,11 @@ model Video {
   title          String?
   summary        String?
   emotionalArc   Json?   @map("emotional_arc")
+  aspectRatio    String  @default("9:16") @map("aspect_ratio")
 
-  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  scenes Scene[]
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  scenes     Scene[]
+  characters Character[]
 
   @@index([userId])
   @@index([status])
@@ -75,4 +77,19 @@ model Scene {
   @@unique([videoId, sceneOrder])
   @@index([videoId])
   @@map("scenes")
+}
+
+model Character {
+  id          String   @id @default(uuid())
+  videoId     String   @map("video_id")
+  name        String
+  description String?
+  imageUrl    String   @map("image_url")
+  sortOrder   Int      @default(0) @map("sort_order")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  video Video @relation(fields: [videoId], references: [id], onDelete: Cascade)
+
+  @@index([videoId])
+  @@map("characters")
 }

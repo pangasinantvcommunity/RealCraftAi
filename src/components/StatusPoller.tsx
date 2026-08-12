@@ -32,6 +32,7 @@ export default function StatusPoller({
   title,
   emotionalArc,
   scenes,
+  aspectRatio,
 }: {
   videoId: string;
   initialStatus: string;
@@ -39,6 +40,7 @@ export default function StatusPoller({
   title?: string | null;
   emotionalArc?: string[];
   scenes?: StoryboardScene[];
+  aspectRatio?: string;
 }) {
   const router = useRouter();
   const [status, setStatus] = useState(initialStatus);
@@ -144,7 +146,7 @@ export default function StatusPoller({
         {scenes && scenes.length > 0 && (
           <div className="mt-10">
             <p className="mb-3 text-xs uppercase tracking-wide text-zinc-500">Scene Thumbnails</p>
-            <SceneStoryboard scenes={scenes} />
+            <SceneStoryboard scenes={scenes} aspectRatio={aspectRatio} />
           </div>
         )}
 

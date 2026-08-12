@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import PromptEditor from "@/components/PromptEditor";
 import StyleSelector, { STORY_STYLES } from "@/components/StyleSelector";
 import DurationSelector, { STORY_DURATIONS } from "@/components/DurationSelector";
+import AspectRatioSelector, { ASPECT_RATIOS } from "@/components/AspectRatioSelector";
+import CharacterReferenceForm, { type CharacterDraft } from "@/components/CharacterReferenceForm";
 import StorySummaryCard from "@/components/StorySummaryCard";
 import { fireToast } from "@/components/ToastStack";
 
@@ -23,6 +25,8 @@ export default function PromptStoryForm() {
   const [prompt, setPrompt] = useState("");
   const [style, setStyle] = useState<string>(STORY_STYLES[0].value);
   const [duration, setDuration] = useState<number>(STORY_DURATIONS[1]);
+  const [aspectRatio, setAspectRatio] = useState<string>(ASPECT_RATIOS[0].value);
+  const [characters, setCharacters] = useState<CharacterDraft[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
 
@@ -34,10 +38,14 @@ export default function PromptStoryForm() {
     setErrorMessage("");
 
     try {
+      const readyCharacters = characters
+        .filter((c) => c.imageUrl && c.name.trim())
+        .map((c) => ({ name: c.name.trim(), description: c.description.trim(), imageUrl: c.imageUrl }));
+
       const response = await fetch("/api/stories", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt, style, duration }),
+        body: JSON.stringify({ prompt, style, duration, aspectRatio, characters: readyCharacters }),
       });
 
       if (response.status === 429) {
@@ -79,9 +87,14 @@ export default function PromptStoryForm() {
 
       {isLongScript && <StorySummaryCard prompt={prompt} style={style} duration={duration} />}
 
-      <div className="mt-6 grid gap-6 sm:grid-cols-2">
+      <div className="mt-6">
+        <CharacterReferenceForm characters={characters} onChange={setCharacters} />
+      </div>
+
+      <div className="mt-6 grid gap-6 sm:grid-cols-3">
         <StyleSelector value={style} onChange={setStyle} />
         <DurationSelector value={duration} onChange={setDuration} />
+        <AspectRatioSelector value={aspectRatio} onChange={setAspectRatio} />
       </div>
 
       {errorMessage && <p className="mt-4 text-center text-sm text-red-400">{errorMessage}</p>}

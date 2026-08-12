@@ -31,6 +31,7 @@ export default async function StoryPage({ params }: { params: Promise<{ id: stri
         emotionalArc={emotionalArc}
         transcript={video.transcript}
         scenes={video.scenes.map((s) => ({ subtitle: s.subtitle, imageUrl: s.imageUrl }))}
+        aspectRatio={video.aspectRatio}
       />
     );
   }
@@ -43,6 +44,7 @@ export default async function StoryPage({ params }: { params: Promise<{ id: stri
       title={video.title}
       emotionalArc={emotionalArc}
       scenes={video.scenes.map((s, i) => ({ order: i + 1, subtitle: s.subtitle, imageUrl: s.imageUrl }))}
+      aspectRatio={video.aspectRatio}
     />
   );
 }

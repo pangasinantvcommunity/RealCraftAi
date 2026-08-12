@@ -46,6 +46,7 @@ export default function StoryPreview({
   emotionalArc,
   transcript,
   scenes,
+  aspectRatio = "9:16",
 }: {
   videoId: string;
   videoUrl: string;
@@ -55,7 +56,9 @@ export default function StoryPreview({
   emotionalArc?: string[];
   transcript?: string | null;
   scenes?: PreviewScene[];
+  aspectRatio?: string;
 }) {
+  const isLandscape = aspectRatio === "16:9";
   useMagnetic();
   const shareUrlRef = useRef<string>("");
 
@@ -65,7 +68,7 @@ export default function StoryPreview({
 
   const handleShare = () => {
     if (navigator.share) {
-      navigator.share({ title: "My Realcraft AI Story", url: shareUrlRef.current });
+      navigator.share({ title: "My RealCraft AI Story", url: shareUrlRef.current });
     } else {
       navigator.clipboard.writeText(shareUrlRef.current);
     }
@@ -91,7 +94,11 @@ export default function StoryPreview({
 
       <div className="relative z-10 mt-10">
         <div className="pointer-events-none absolute -inset-8 rounded-[2rem] bg-gradient-to-br from-violet-500/30 to-cyan-500/30 blur-3xl" />
-        <div className="relative aspect-[9/16] w-[320px] overflow-hidden rounded-3xl border border-white/10 shadow-glow sm:w-[360px]">
+        <div
+          className={`relative overflow-hidden rounded-3xl border border-white/10 shadow-glow ${
+            isLandscape ? "aspect-[16/9] w-[90vw] max-w-2xl" : "aspect-[9/16] w-[320px] sm:w-[360px]"
+          }`}
+        >
           <video
             className="h-full w-full object-cover"
             src={videoUrl}
@@ -115,7 +122,7 @@ export default function StoryPreview({
       {scenes && scenes.length > 0 && (
         <div className="relative z-10 mt-8 w-full max-w-3xl">
           <p className="mb-3 text-center text-xs uppercase tracking-wide text-zinc-500">Storyboard</p>
-          <SceneStoryboard scenes={scenes.map((scene, i) => ({ order: i + 1, ...scene }))} />
+          <SceneStoryboard scenes={scenes.map((scene, i) => ({ order: i + 1, ...scene }))} aspectRatio={aspectRatio} />
         </div>
       )}
 
@@ -132,7 +139,9 @@ export default function StoryPreview({
       </div>
 
       <p className="relative z-10 mt-8 max-w-md text-center text-xs text-zinc-500">
-        Optimized 1080×1920 MP4 — ready for TikTok, Instagram Reels, Facebook Reels, and YouTube Shorts.
+        {isLandscape
+          ? "Optimized 1920×1080 MP4 — ready for YouTube and widescreen playback."
+          : "Optimized 1080×1920 MP4 — ready for TikTok, Instagram Reels, Facebook Reels, and YouTube Shorts."}
       </p>
     </section>
   );

@@ -17,6 +17,14 @@ export async function uploadImage(buffer: Buffer) {
   return blob.url;
 }
 
+export async function uploadCharacterImage(userId: string, buffer: Buffer, contentType: string, ext: string) {
+  const blob = await put(`characters/${userId}/${randomUUID()}.${ext}`, buffer, {
+    access: "public",
+    contentType,
+  });
+  return blob.url;
+}
+
 export async function uploadVideo(buffer: Buffer) {
   const blob = await put(`videos/${randomUUID()}.mp4`, buffer, {
     access: "public",

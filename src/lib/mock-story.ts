@@ -1,4 +1,4 @@
-import type { ProcessedScene, ProcessedStory } from "@/lib/story-pipeline";
+import type { CharacterInput, ProcessedScene, ProcessedStory } from "@/lib/story-pipeline";
 
 const STOP_WORDS = new Set(["The", "A", "An", "In", "On", "At", "Once", "When", "This", "That", "It", "He", "She", "They"]);
 
@@ -53,12 +53,22 @@ function buildImagePrompt(sceneText: string, style: string): string {
  * Deterministic, zero-cost story generator used in dev mode — no OpenAI call.
  * Same prompt/style/duration always produces the same output.
  */
-export function generateMockStory(prompt: string, style: string, duration: number): ProcessedStory {
+export function generateMockStory(
+  prompt: string,
+  style: string,
+  duration: number,
+  characterInputs?: CharacterInput[],
+): ProcessedStory {
   const words = extractCapitalizedWords(prompt);
   const title = deriveTitle(prompt);
 
   const summary = prompt.length > 220 ? prompt.slice(0, 217).trimEnd() + "..." : prompt || "A cinematic story waiting to be told.";
-  const characters = words.length > 0 ? words.slice(0, 3) : ["The Protagonist"];
+  const characters =
+    characterInputs && characterInputs.length > 0
+      ? characterInputs.map((c) => c.name)
+      : words.length > 0
+        ? words.slice(0, 3)
+        : ["The Protagonist"];
   const locations = words.length > 3 ? words.slice(3, 6) : ["An Unknown Place"];
 
   const sceneCount = 6;
