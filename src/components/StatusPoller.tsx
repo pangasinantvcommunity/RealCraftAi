@@ -4,14 +4,16 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import TunnelScene from "@/components/TunnelScene";
+import SceneStoryboard, { type StoryboardScene } from "@/components/SceneStoryboard";
+import EmotionalArcChips from "@/components/EmotionalArcChips";
 import { fireToast } from "@/components/ToastStack";
 
 const STEPS = [
-  { key: "pending", label: "Uploading" },
-  { key: "transcribing", label: "Transcribing" },
-  { key: "creating_scenes", label: "Creating scenes" },
-  { key: "generating_images", label: "Generating images" },
-  { key: "rendering", label: "Rendering film" },
+  { key: "pending", label: "Understanding Story" },
+  { key: "transcribing", label: "Understanding Story" },
+  { key: "creating_scenes", label: "Creating Scenes" },
+  { key: "generating_images", label: "Designing Cinematic Frames" },
+  { key: "rendering", label: "Rendering Film" },
   { key: "completed", label: "Finalizing" },
 ];
 
@@ -27,10 +29,16 @@ export default function StatusPoller({
   videoId,
   initialStatus,
   initialProgress,
+  title,
+  emotionalArc,
+  scenes,
 }: {
   videoId: string;
   initialStatus: string;
   initialProgress: number;
+  title?: string | null;
+  emotionalArc?: string[];
+  scenes?: StoryboardScene[];
 }) {
   const router = useRouter();
   const [status, setStatus] = useState(initialStatus);
@@ -79,6 +87,7 @@ export default function StatusPoller({
   const stepIndex = (key: string) => STEPS.findIndex((s) => s.key === key);
   const isDone = (key: string) => stepIndex(key) < stepIndex(status);
   const isActive = (key: string) => key === status;
+  const currentLabel = STEPS.find((s) => s.key === status)?.label ?? "Processing";
 
   return (
     <section className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden px-6 py-32">
@@ -86,8 +95,15 @@ export default function StatusPoller({
       <div className="pointer-events-none absolute inset-0 bg-cinematic-glow" />
 
       <div className="relative z-10 w-full max-w-xl text-center">
+        {title && <p className="mb-2 text-xs uppercase tracking-[0.3em] text-violet-300">{title}</p>}
         <h1 className="cinematic-heading font-heading text-3xl font-bold sm:text-4xl">Crafting Your Cinematic Story</h1>
-        <p className="mt-2 text-zinc-400">Sit back — this usually takes a minute or two.</p>
+        <p className="mt-2 text-zinc-400">{currentLabel} — this usually takes a minute or two.</p>
+
+        {emotionalArc && emotionalArc.length > 0 && (
+          <div className="mt-6">
+            <EmotionalArcChips arc={emotionalArc} />
+          </div>
+        )}
 
         <div className="mt-10 h-2 w-full overflow-hidden rounded-full bg-white/10">
           <div
@@ -98,9 +114,9 @@ export default function StatusPoller({
         <p className="mt-3 font-heading text-sm text-zinc-300">{progress}%</p>
 
         <ol className="mt-10 space-y-4 text-left">
-          {STEPS.map((step) => (
+          {STEPS.map((step, i) => (
             <li
-              key={step.key}
+              key={`${step.key}-${i}`}
               className={`glass-panel flex items-center gap-4 px-5 py-4 transition-opacity ${
                 isActive(step.key) ? "border-violet-400/50" : ""
               }`}
@@ -124,6 +140,13 @@ export default function StatusPoller({
             </li>
           ))}
         </ol>
+
+        {scenes && scenes.length > 0 && (
+          <div className="mt-10">
+            <p className="mb-3 text-xs uppercase tracking-wide text-zinc-500">Scene Thumbnails</p>
+            <SceneStoryboard scenes={scenes} />
+          </div>
+        )}
 
         {failed && (
           <>

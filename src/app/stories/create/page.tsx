@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { remainingCredits } from "@/lib/story";
-import AudioRecorder from "@/components/AudioRecorder";
+import CreateStoryTabs from "@/components/CreateStoryTabs";
 
 export default async function CreateStoryPage() {
   const session = await auth();
@@ -17,11 +17,11 @@ export default async function CreateStoryPage() {
 
       <div className="relative w-full max-w-2xl">
         <div className="mb-8 text-center">
-          <h1 className="cinematic-heading font-heading text-3xl font-bold sm:text-4xl">Create Your Story</h1>
+          <h1 className="cinematic-heading font-heading text-3xl font-bold sm:text-4xl">Create Your Cinematic Story</h1>
           <p className="mt-2 text-zinc-400">{credits} {credits === 1 ? "credit" : "credits"} remaining today</p>
         </div>
 
-        <AudioRecorder />
+        <CreateStoryTabs />
       </div>
     </section>
   );

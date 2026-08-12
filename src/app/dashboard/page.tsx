@@ -5,6 +5,12 @@ import { remainingCredits } from "@/lib/story";
 import { storyConfig } from "@/lib/config";
 import UpgradeModal from "@/components/UpgradeModal";
 import DevModeBadge from "@/components/DevModeBadge";
+import { STORY_STYLES } from "@/components/StyleSelector";
+
+function styleLabel(style: string | null): string | null {
+  if (!style) return null;
+  return STORY_STYLES.find((s) => s.value === style)?.label ?? style;
+}
 
 export default async function DashboardPage({
   searchParams,
@@ -38,7 +44,7 @@ export default async function DashboardPage({
           </div>
           <p className="text-zinc-400">{totalCount} cinematic {totalCount === 1 ? "story" : "stories"} created so far.</p>
         </div>
-        <Link href="/stories/create" className="btn-primary">+ Create Story</Link>
+        <Link href="/stories/create" className="btn-primary">+ Create Cinematic Story</Link>
       </div>
 
       <div className="mt-10 grid gap-6 sm:grid-cols-3">
@@ -80,7 +86,7 @@ export default async function DashboardPage({
         {videos.length === 0 ? (
           <div className="glass-panel col-span-full p-12 text-center">
             <p className="text-zinc-400">You haven&apos;t created a story yet.</p>
-            <Link href="/stories/create" className="btn-primary mt-6 inline-flex">Create Your First Story</Link>
+            <Link href="/stories/create" className="btn-primary mt-6 inline-flex">Create Cinematic Story</Link>
           </div>
         ) : (
           videos.map((video) => (
@@ -111,9 +117,19 @@ export default async function DashboardPage({
               </div>
               <div className="p-4">
                 <p className="truncate text-sm text-zinc-300">
-                  {video.transcript ? video.transcript.slice(0, 60) : "Processing your story..."}
+                  {video.title || (video.transcript ? video.transcript.slice(0, 60) : "Processing your story...")}
                 </p>
-                <p className="mt-1 text-xs text-zinc-500">{video.createdAt.toLocaleDateString()}</p>
+                <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-zinc-500">
+                  {styleLabel(video.style) && <span>{styleLabel(video.style)}</span>}
+                  {video.targetDuration && (
+                    <>
+                      <span className="text-zinc-700">•</span>
+                      <span>{video.targetDuration}s</span>
+                    </>
+                  )}
+                  <span className="text-zinc-700">•</span>
+                  <span>{video.createdAt.toLocaleDateString()}</span>
+                </div>
               </div>
             </Link>
           ))

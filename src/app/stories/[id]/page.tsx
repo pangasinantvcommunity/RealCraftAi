@@ -18,12 +18,17 @@ export default async function StoryPage({ params }: { params: Promise<{ id: stri
     notFound();
   }
 
+  const emotionalArc = Array.isArray(video.emotionalArc) ? (video.emotionalArc as string[]) : [];
+
   if (video.status === "completed" && video.videoUrl) {
     return (
       <StoryPreview
         videoId={video.id}
         videoUrl={video.videoUrl}
         posterUrl={video.scenes[0]?.imageUrl ?? null}
+        title={video.title}
+        summary={video.summary}
+        emotionalArc={emotionalArc}
         transcript={video.transcript}
         scenes={video.scenes.map((s) => ({ subtitle: s.subtitle, imageUrl: s.imageUrl }))}
       />
@@ -31,6 +36,13 @@ export default async function StoryPage({ params }: { params: Promise<{ id: stri
   }
 
   return (
-    <StatusPoller videoId={video.id} initialStatus={video.status} initialProgress={progressPercent(video.status)} />
+    <StatusPoller
+      videoId={video.id}
+      initialStatus={video.status}
+      initialProgress={progressPercent(video.status)}
+      title={video.title}
+      emotionalArc={emotionalArc}
+      scenes={video.scenes.map((s, i) => ({ order: i + 1, subtitle: s.subtitle, imageUrl: s.imageUrl }))}
+    />
   );
 }

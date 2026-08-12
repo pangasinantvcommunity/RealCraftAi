@@ -14,40 +14,60 @@ export const generateStoryVideo = inngest.createFunction(
     const { videoId } = event.data as { videoId: string };
 
     try {
-      const transcript = await step.run("transcribe", async () => {
-        await prisma.video.update({ where: { id: videoId }, data: { status: "transcribing" } });
-
-        const video = await prisma.video.findUniqueOrThrow({ where: { id: videoId } });
-        const response = await fetch(video.audioUrl);
-        const audioBuffer = Buffer.from(await response.arrayBuffer());
-
-        const text = await transcribeAudio(audioBuffer, "audio.webm");
-        await prisma.video.update({ where: { id: videoId }, data: { transcript: text } });
-
-        return text;
+      const initialVideo = await step.run("load-video", async () => {
+        return prisma.video.findUniqueOrThrow({ where: { id: videoId } });
       });
 
-      const scenes = await step.run("create-scenes", async () => {
-        await prisma.video.update({ where: { id: videoId }, data: { status: "creating_scenes" } });
+      // Prompt-originated videos already have their scenes created
+      // synchronously in the API route (see processPrompt() in
+      // src/lib/story-pipeline.ts) — skip straight to image generation.
+      // Voice/upload-originated videos still need transcription + splitting.
+      const isPromptStory = Boolean(initialVideo.prompt);
 
-        const split = splitTranscriptIntoScenes(transcript, storyConfig.sceneCount);
+      const scenes = isPromptStory
+        ? await step.run("load-scenes", async () => {
+            await prisma.video.update({ where: { id: videoId }, data: { status: "creating_scenes" } });
+            return prisma.scene.findMany({ where: { videoId }, orderBy: { sceneOrder: "asc" } });
+          })
+        : await (async () => {
+            const transcript = await step.run("transcribe", async () => {
+              await prisma.video.update({ where: { id: videoId }, data: { status: "transcribing" } });
 
-        await prisma.scene.createMany({
-          data: split.map((s) => ({
-            videoId,
-            sceneOrder: s.order,
-            prompt: s.prompt,
-            subtitle: s.subtitle,
-          })),
-        });
+              const video = await prisma.video.findUniqueOrThrow({ where: { id: videoId } });
+              if (!video.audioUrl) throw new Error("Video has no audio to transcribe.");
 
-        return prisma.scene.findMany({ where: { videoId }, orderBy: { sceneOrder: "asc" } });
-      });
+              const response = await fetch(video.audioUrl);
+              const audioBuffer = Buffer.from(await response.arrayBuffer());
+
+              const text = await transcribeAudio(audioBuffer, "audio.webm");
+              await prisma.video.update({ where: { id: videoId }, data: { transcript: text } });
+
+              return text;
+            });
+
+            return step.run("create-scenes", async () => {
+              await prisma.video.update({ where: { id: videoId }, data: { status: "creating_scenes" } });
+
+              const split = splitTranscriptIntoScenes(transcript, storyConfig.sceneCount);
+
+              await prisma.scene.createMany({
+                data: split.map((s) => ({
+                  videoId,
+                  sceneOrder: s.order,
+                  prompt: s.prompt,
+                  subtitle: s.subtitle,
+                })),
+              });
+
+              return prisma.scene.findMany({ where: { videoId }, orderBy: { sceneOrder: "asc" } });
+            });
+          })();
 
       await step.run("generate-images", async () => {
         await prisma.video.update({ where: { id: videoId }, data: { status: "generating_images" } });
 
         for (const scene of scenes) {
+          if (scene.imageUrl) continue;
           const imageBuffer = await generateSceneImage(scene.prompt);
           const imageUrl = await uploadImage(imageBuffer);
           await prisma.scene.update({ where: { id: scene.id }, data: { imageUrl } });

@@ -32,3 +32,24 @@ export function progressPercent(status: VideoStatus): number {
       return 0;
   }
 }
+
+/** Cinematic display name for each pipeline stage (used by the status page). */
+export function stageLabel(status: VideoStatus): string {
+  switch (status) {
+    case "pending":
+    case "transcribing":
+      return "Understanding Story";
+    case "creating_scenes":
+      return "Creating Scenes";
+    case "generating_images":
+      return "Designing Cinematic Frames";
+    case "rendering":
+      return "Rendering Film";
+    case "completed":
+      return "Finalizing";
+    case "failed":
+      return "Failed";
+    default:
+      return "Processing";
+  }
+}

@@ -10,7 +10,6 @@ export default function AudioRecorder() {
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
-  const [dragging, setDragging] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
 
@@ -125,20 +124,6 @@ export default function AudioRecorder() {
     if (audioUrl) new Audio(audioUrl).play();
   };
 
-  const setFileAsBlob = (file: File) => {
-    if (!file.type.startsWith("audio/")) {
-      setErrorMessage("Please choose a valid audio file.");
-      return;
-    }
-    if (file.size > 25 * 1024 * 1024) {
-      setErrorMessage("Audio files must be smaller than 25MB.");
-      return;
-    }
-    setAudioBlob(file);
-    setAudioUrl(URL.createObjectURL(file));
-    setErrorMessage("");
-  };
-
   const submit = async () => {
     if (!audioBlob || uploading) return;
     setUploading(true);
@@ -202,45 +187,6 @@ export default function AudioRecorder() {
             </button>
           </div>
         )}
-      </div>
-
-      <div className="my-8 flex items-center gap-4 text-xs uppercase tracking-widest text-zinc-600">
-        <span className="h-px flex-1 bg-white/10" /> or <span className="h-px flex-1 bg-white/10" />
-      </div>
-
-      <div
-        className={`rounded-2xl border-2 border-dashed border-white/15 p-8 text-center transition-colors ${
-          dragging ? "border-violet-400/70 bg-violet-500/5" : ""
-        }`}
-        onDragOver={(e) => {
-          e.preventDefault();
-          setDragging(true);
-        }}
-        onDragLeave={(e) => {
-          e.preventDefault();
-          setDragging(false);
-        }}
-        onDrop={(e) => {
-          e.preventDefault();
-          setDragging(false);
-          const file = e.dataTransfer.files[0];
-          if (file) setFileAsBlob(file);
-        }}
-      >
-        <p className="text-sm text-zinc-400">Drag &amp; drop an audio file here, or</p>
-        <label className="mt-3 inline-block cursor-pointer text-sm font-semibold text-violet-300 hover:text-white">
-          browse files
-          <input
-            type="file"
-            accept="audio/*"
-            className="hidden"
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (file) setFileAsBlob(file);
-            }}
-          />
-        </label>
-        <p className="mt-2 text-xs text-zinc-600">WAV, MP3, M4A, OGG, WEBM — up to 25MB</p>
       </div>
 
       {errorMessage && <p className="mt-4 text-center text-sm text-red-400">{errorMessage}</p>}

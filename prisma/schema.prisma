@@ -35,13 +35,21 @@ model Video {
   id              String      @id @default(uuid())
   userId          String      @map("user_id")
   status          VideoStatus @default(pending)
-  audioUrl        String      @map("audio_url")
+  audioUrl        String?     @map("audio_url")
   transcript      String?
   videoUrl        String?     @map("video_url")
   durationSeconds Int?        @map("duration_seconds")
   metadata        Json?
   createdAt       DateTime    @default(now()) @map("created_at")
   updatedAt       DateTime    @updatedAt @map("updated_at")
+
+  // Prompt-only cinematic story generator fields
+  prompt         String?
+  style          String?
+  targetDuration Int?    @map("target_duration")
+  title          String?
+  summary        String?
+  emotionalArc   Json?   @map("emotional_arc")
 
   user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   scenes Scene[]

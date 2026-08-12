@@ -112,18 +112,30 @@ async function crossfadeSegments(segmentPaths: string[], outputPath: string) {
 
 async function muxAudioAndFinalize(
   silentVideoPath: string,
-  narrationPath: string,
+  narrationPath: string | null,
   musicPath: string | null,
   outputPath: string,
 ) {
+  const hasNarration = Boolean(narrationPath);
   const hasMusic = Boolean(musicPath);
 
-  const inputs = ["-i", silentVideoPath, "-i", narrationPath];
+  const inputs = ["-i", silentVideoPath];
+  if (hasNarration && narrationPath) inputs.push("-i", narrationPath);
   if (hasMusic && musicPath) inputs.push("-i", musicPath);
+  if (!hasNarration && !hasMusic) inputs.push("-f", "lavfi", "-i", "anullsrc=channel_layout=stereo:sample_rate=48000");
 
-  const audioFilter = hasMusic
-    ? "[1:a]volume=1.0[narration];[2:a]volume=0.2[music];[narration][music]amix=inputs=2:duration=first:dropout_transition=2[aout]"
-    : "[1:a]volume=1.0[aout]";
+  // Input index 1 is narration if present, else music, else silence — build
+  // the filter graph to match whichever combination is actually attached.
+  let audioFilter: string;
+  if (hasNarration && hasMusic) {
+    audioFilter = "[1:a]volume=1.0[narration];[2:a]volume=0.2[music];[narration][music]amix=inputs=2:duration=first:dropout_transition=2[aout]";
+  } else if (hasNarration) {
+    audioFilter = "[1:a]volume=1.0[aout]";
+  } else if (hasMusic) {
+    audioFilter = "[1:a]volume=0.6[aout]"; // no narration to duck under — music carries the soundtrack
+  } else {
+    audioFilter = "[1:a]anull[aout]";
+  }
 
   await run(
     ffmpegPath.path,
@@ -147,7 +159,7 @@ async function muxAudioAndFinalize(
   );
 }
 
-export async function renderStoryVideo(scenes: SceneInput[], narrationUrl: string): Promise<string> {
+export async function renderStoryVideo(scenes: SceneInput[], narrationUrl: string | null): Promise<string> {
   if (isDevMode) {
     throw new Error("FFmpeg render worker disabled in development mode");
   }
@@ -165,8 +177,11 @@ export async function renderStoryVideo(scenes: SceneInput[], narrationUrl: strin
     const silentPath = path.join(workDir, "combined_silent.mp4");
     await crossfadeSegments(segmentPaths, silentPath);
 
-    const narrationPath = path.join(workDir, "narration.audio");
-    await downloadToFile(narrationUrl, narrationPath);
+    let narrationPath: string | null = null;
+    if (narrationUrl) {
+      narrationPath = path.join(workDir, "narration.audio");
+      await downloadToFile(narrationUrl, narrationPath);
+    }
 
     const musicUrl = process.env.FFMPEG_MUSIC_TRACK_URL || null;
     let musicPath: string | null = null;

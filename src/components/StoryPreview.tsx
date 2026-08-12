@@ -4,6 +4,8 @@ import { useEffect, useRef } from "react";
 import Link from "next/link";
 import gsap from "gsap";
 import { isDevMode } from "@/lib/config";
+import SceneStoryboard from "@/components/SceneStoryboard";
+import EmotionalArcChips from "@/components/EmotionalArcChips";
 
 export type PreviewScene = { subtitle: string; imageUrl: string | null };
 
@@ -39,12 +41,18 @@ export default function StoryPreview({
   videoId,
   videoUrl,
   posterUrl,
+  title,
+  summary,
+  emotionalArc,
   transcript,
   scenes,
 }: {
   videoId: string;
   videoUrl: string;
   posterUrl: string | null;
+  title?: string | null;
+  summary?: string | null;
+  emotionalArc?: string[];
   transcript?: string | null;
   scenes?: PreviewScene[];
 }) {
@@ -71,8 +79,14 @@ export default function StoryPreview({
       <div className="relative z-10 text-center">
         <p className="text-xs uppercase tracking-[0.3em] text-violet-300">Your Story Is Ready</p>
         <h1 className="cinematic-heading mt-3 font-heading text-3xl font-bold sm:text-4xl">
-          Watch Your Cinematic Story
+          {title || "Watch Your Cinematic Story"}
         </h1>
+        {summary && <p className="mx-auto mt-3 max-w-lg text-sm text-zinc-400">{summary}</p>}
+        {emotionalArc && emotionalArc.length > 0 && (
+          <div className="mt-4">
+            <EmotionalArcChips arc={emotionalArc} />
+          </div>
+        )}
       </div>
 
       <div className="relative z-10 mt-10">
@@ -100,19 +114,8 @@ export default function StoryPreview({
 
       {scenes && scenes.length > 0 && (
         <div className="relative z-10 mt-8 w-full max-w-3xl">
-          <p className="mb-3 text-center text-xs uppercase tracking-wide text-zinc-500">Scenes</p>
-          <div className="grid grid-cols-3 gap-3 sm:grid-cols-6">
-            {scenes.map((scene, i) => (
-              <div key={i} className="glass-panel aspect-[9/16] overflow-hidden">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                {scene.imageUrl ? (
-                  <img src={scene.imageUrl} alt={scene.subtitle} className="h-full w-full object-cover" />
-                ) : (
-                  <div className="flex h-full w-full items-center justify-center text-lg">🎞️</div>
-                )}
-              </div>
-            ))}
-          </div>
+          <p className="mb-3 text-center text-xs uppercase tracking-wide text-zinc-500">Storyboard</p>
+          <SceneStoryboard scenes={scenes.map((scene, i) => ({ order: i + 1, ...scene }))} />
         </div>
       )}
 

@@ -18,19 +18,18 @@ const sora = Sora({ subsets: ["latin"], variable: "--font-sora", weight: ["400",
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter", weight: ["400", "500", "600"] });
 
 export const metadata: Metadata = {
-  title: "Realcraft AI — Turn Your Voice Into a Cinematic Story",
-  description:
-    "Realcraft AI turns your voice into a cinematic 3D animated story video, ready for TikTok, Reels, and Shorts.",
-  keywords: "AI story generator, voice to video, animated story maker, cinematic AI video creator",
+  title: "Realcraft AI — Create Cinematic Stories from Text",
+  description: "Turn a text prompt into a cinematic 3D story video in seconds.",
+  keywords: "AI story generator, text to video, cinematic story generator, animated story maker, cinematic AI video creator",
   openGraph: {
-    title: "Realcraft AI — Turn Your Voice Into a Cinematic Story",
-    description: "Record a voice. Generate a 3D animated story. Share it instantly.",
+    title: "Realcraft AI — Create Cinematic Stories from Text",
+    description: "Turn a text prompt into a cinematic 3D story video in seconds.",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Realcraft AI",
-    description: "Turn your voice into a cinematic story.",
+    title: "Realcraft AI — Create Cinematic Stories from Text",
+    description: "Turn a text prompt into a cinematic 3D story video in seconds.",
   },
 };
 

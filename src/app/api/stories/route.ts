@@ -7,6 +7,8 @@ import { uploadAudio } from "@/lib/storage";
 import { inngest } from "@/inngest/client";
 import { generateMockScenes } from "@/lib/mock-scene-generator";
 import { MOCK_TRANSCRIPT } from "@/lib/mock-data";
+import { processPrompt } from "@/lib/story-pipeline";
+import { getMockSceneImageUrl, slugify } from "@/lib/mock-story";
 
 const ALLOWED_MIME_TYPES = [
   "audio/webm",
@@ -18,6 +20,8 @@ const ALLOWED_MIME_TYPES = [
   "audio/m4a",
   "audio/ogg",
 ];
+
+const MAX_PROMPT_LENGTH = 10000;
 
 export async function POST(request: NextRequest) {
   const session = await auth();
@@ -31,6 +35,68 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "limit_reached" }, { status: 429 });
   }
 
+  const contentType = request.headers.get("content-type") ?? "";
+
+  if (contentType.includes("application/json")) {
+    return handlePromptStory(request, userId);
+  }
+
+  return handleAudioStory(request, userId);
+}
+
+/** Primary flow: text prompt -> structured story -> 6 scenes. No audio involved. */
+async function handlePromptStory(request: NextRequest, userId: string) {
+  const body = await request.json().catch(() => null);
+  const prompt = typeof body?.prompt === "string" ? body.prompt.trim() : "";
+  const style = typeof body?.style === "string" ? body.style : "3d-cinematic";
+  const duration = Number.isFinite(body?.duration) ? Number(body.duration) : 45;
+
+  if (!prompt) {
+    return NextResponse.json({ error: "Please describe a story before generating." }, { status: 422 });
+  }
+  if (prompt.length > MAX_PROMPT_LENGTH) {
+    return NextResponse.json({ error: `Prompts must be under ${MAX_PROMPT_LENGTH.toLocaleString()} characters.` }, { status: 422 });
+  }
+
+  const story = await processPrompt({ prompt, style, duration });
+
+  const video = await prisma.video.create({
+    data: {
+      userId,
+      status: "pending",
+      prompt,
+      style,
+      targetDuration: duration,
+      title: story.title,
+      summary: story.summary,
+      emotionalArc: story.emotionalArc,
+      metadata: isDevMode ? { devMode: true } : undefined,
+    },
+  });
+
+  const titleSlug = slugify(story.title);
+  await prisma.scene.createMany({
+    data: story.scenes.map((scene) => ({
+      videoId: video.id,
+      sceneOrder: scene.order,
+      prompt: scene.imagePrompt,
+      subtitle: scene.subtitle,
+      imageUrl: isDevMode ? getMockSceneImageUrl(`${titleSlug}-scene-${scene.order}`) : null,
+    })),
+  });
+
+  if (!isDevMode) {
+    await inngest.send({ name: "story/generate.requested", data: { videoId: video.id } });
+  }
+  // Dev mode: no job to dispatch — the status route simulates progress from
+  // elapsed time and stamps status="completed" once it's done (see
+  // src/lib/mock-progress.ts).
+
+  return NextResponse.json({ id: video.id }, { status: 201 });
+}
+
+/** Secondary flow (Voice / Upload tabs): audio -> transcript -> scenes, unchanged. */
+async function handleAudioStory(request: NextRequest, userId: string) {
   const formData = await request.formData();
   const audio = formData.get("audio");
 
