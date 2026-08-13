@@ -29,12 +29,23 @@ async function downloadToFile(url: string, destPath: string) {
 }
 
 function escapeDrawtext(text: string): string {
-  const escaped = text
+  // Truncate/normalize whitespace *before* escaping so we never cut a
+  // multi-character escape sequence in half.
+  const truncated = text.replace(/\n/g, " ").slice(0, 140);
+
+  // The whole string is wrapped in single quotes (text='...') below.
+  // ffmpeg's filtergraph quoting for a literal `'` inside a quoted string
+  // (close quote, escaped quote, reopen quote: '\'') looks right per the
+  // docs but empirically still corrupts parsing of every filter option that
+  // follows (verified against the real ffmpeg binary — this is exactly what
+  // broke a real "Ramon's" subtitle in production, both the naive `\'`
+  // escape and the documented `'\''` trick). Sidestepping the quoting
+  // entirely by swapping in a visually-identical Unicode apostrophe is the
+  // only approach that held up under testing.
+  return truncated
     .replace(/\\/g, "\\\\")
-    .replace(/'/g, "\\'")
-    .replace(/:/g, "\\:")
-    .replace(/\n/g, " ");
-  return escaped.slice(0, 140);
+    .replace(/'/g, "’")
+    .replace(/:/g, "\\:");
 }
 
 async function renderSceneSegment(

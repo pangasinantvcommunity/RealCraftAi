@@ -19,6 +19,11 @@ export function computeEpisodeSceneCount(runtimeStructure: RuntimeStructure | nu
   return Math.min(storyConfig.maxSceneCount, Math.max(1, partsPerEpisode * scenesPerPart));
 }
 
+/** How many parts an episode is split into, from the project's runtime structure. */
+export function computeEpisodePartCount(runtimeStructure: RuntimeStructure | null): number {
+  return runtimeStructure?.partsPerEpisode ?? 1;
+}
+
 /** Keeps only finite positive numbers for known runtime-structure fields; drops everything else. */
 export function sanitizeRuntimeStructure(input: unknown): RuntimeStructure {
   const result: RuntimeStructure = {};

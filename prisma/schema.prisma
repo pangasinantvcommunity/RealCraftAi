@@ -61,6 +61,13 @@ model Video {
   aspectRatio    String  @default("9:16") @map("aspect_ratio")
   projectId      String? @map("project_id")
 
+  // Episode draft workflow: a project episode can be saved without starting
+  // generation, then generated later via a manual trigger.
+  episodeNumber    Int?   @map("episode_number")
+  partCount        Int?   @map("part_count")
+  sceneCount       Int?   @map("scene_count")
+  generationStatus String @default("draft") @map("generation_status")
+
   user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   project    Project?    @relation(fields: [projectId], references: [id])
   scenes     Scene[]

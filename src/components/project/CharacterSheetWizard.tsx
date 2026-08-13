@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { fireToast } from "@/components/ToastStack";
 import { storyConfig } from "@/lib/config";
@@ -177,14 +178,22 @@ export default function CharacterSheetWizard({
               <div className="min-w-0 flex-1">
                 <div className="flex items-start justify-between gap-2">
                   <p className="truncate text-sm font-semibold text-white">{c.name}</p>
-                  <button
-                    type="button"
-                    onClick={() => remove(c.id)}
-                    className="shrink-0 text-zinc-500 transition-colors hover:text-red-400"
-                    aria-label={`Remove ${c.name}`}
-                  >
-                    ×
-                  </button>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <Link
+                      href={`/projects/${projectId}/characters/${c.id}/edit`}
+                      className="text-xs font-semibold text-violet-300 transition-colors hover:text-violet-200"
+                    >
+                      Edit
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={() => remove(c.id)}
+                      className="text-zinc-500 transition-colors hover:text-red-400"
+                      aria-label={`Remove ${c.name}`}
+                    >
+                      ×
+                    </button>
+                  </div>
                 </div>
                 {c.role && <p className="text-xs text-violet-300">{c.role}</p>}
                 <p className="mt-1 line-clamp-2 text-xs text-zinc-400">{c.appearance}</p>

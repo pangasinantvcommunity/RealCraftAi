@@ -25,6 +25,7 @@ export default async function EditStoryPage({ params }: { params: Promise<{ id: 
           videoId={video.id}
           initialTitle={video.title ?? ""}
           initialPrompt={video.prompt ?? ""}
+          redirectTo={video.generationStatus === "draft" && video.projectId ? `/projects/${video.projectId}` : `/stories/${video.id}`}
         />
       </div>
     </section>

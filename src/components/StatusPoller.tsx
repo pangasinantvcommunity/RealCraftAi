@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import TunnelScene from "@/components/TunnelScene";
@@ -51,7 +51,51 @@ export default function StatusPoller({
   const [failed, setFailed] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [cancelling, setCancelling] = useState(false);
+  const [regenerating, setRegenerating] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const poll = useCallback(async () => {
+    try {
+      const response = await fetch(`/api/stories/${videoId}/status`, {
+        headers: { Accept: "application/json" },
+      });
+      if (!response.ok) throw new Error("Status request failed");
+
+      const data: StatusResponse = await response.json();
+      setStatus(data.status);
+      setProgress(data.progress);
+      setFailed(data.failed);
+      setErrorMessage(data.error || "");
+
+      if (data.failed) {
+        if (intervalRef.current) clearInterval(intervalRef.current);
+        fireToast({ type: "error", message: data.error || "Story generation failed." });
+        return;
+      }
+
+      if (data.redirect_url) {
+        if (intervalRef.current) clearInterval(intervalRef.current);
+        router.push(data.redirect_url);
+        router.refresh();
+      }
+    } catch {
+      fireToast({ type: "error", message: "Lost connection while checking your story status." });
+    }
+  }, [videoId, router]);
+
+  const startPolling = useCallback(() => {
+    if (intervalRef.current) clearInterval(intervalRef.current);
+    poll();
+    intervalRef.current = setInterval(poll, 3000);
+  }, [poll]);
+
+  useEffect(() => {
+    startPolling();
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
+  }, [startPolling]);
 
   const cancelGeneration = async () => {
     if (cancelling) return;
@@ -70,42 +114,46 @@ export default function StatusPoller({
     }
   };
 
-  useEffect(() => {
-    const poll = async () => {
-      try {
-        const response = await fetch(`/api/stories/${videoId}/status`, {
-          headers: { Accept: "application/json" },
-        });
-        if (!response.ok) throw new Error("Status request failed");
-
-        const data: StatusResponse = await response.json();
-        setStatus(data.status);
-        setProgress(data.progress);
-        setFailed(data.failed);
-        setErrorMessage(data.error || "");
-
-        if (data.failed) {
-          if (intervalRef.current) clearInterval(intervalRef.current);
-          fireToast({ type: "error", message: data.error || "Story generation failed." });
-          return;
-        }
-
-        if (data.redirect_url) {
-          if (intervalRef.current) clearInterval(intervalRef.current);
-          router.push(data.redirect_url);
-          router.refresh();
-        }
-      } catch {
-        fireToast({ type: "error", message: "Lost connection while checking your story status." });
+  const regenerate = async () => {
+    if (regenerating) return;
+    setRegenerating(true);
+    try {
+      const response = await fetch(`/api/stories/${videoId}/regenerate`, { method: "POST" });
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        throw new Error(body.error || "Could not regenerate this episode.");
       }
-    };
+      setFailed(false);
+      setErrorMessage("");
+      setStatus("pending");
+      setProgress(5);
+      startPolling();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Could not regenerate this episode.";
+      fireToast({ type: "error", message });
+    } finally {
+      setRegenerating(false);
+    }
+  };
 
-    poll();
-    intervalRef.current = setInterval(poll, 3000);
-    return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-    };
-  }, [videoId, router]);
+  const deleteEpisode = async () => {
+    if (deleting) return;
+    if (!window.confirm("Delete this episode? This cannot be undone.")) return;
+    setDeleting(true);
+    try {
+      const response = await fetch(`/api/stories/${videoId}`, { method: "DELETE" });
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        throw new Error(body.error || "Could not delete this episode.");
+      }
+      router.push(projectId ? `/projects/${projectId}` : "/dashboard");
+      router.refresh();
+    } catch (error) {
+      setDeleting(false);
+      const message = error instanceof Error ? error.message : "Could not delete this episode.";
+      fireToast({ type: "error", message });
+    }
+  };
 
   const stepIndex = (key: string) => STEPS.findIndex((s) => s.key === key);
   const isDone = (key: string) => stepIndex(key) < stepIndex(status);
@@ -185,9 +233,20 @@ export default function StatusPoller({
         {failed && (
           <>
             <p className="mt-8 text-sm text-red-400">{errorMessage || "Something went wrong while generating your story."}</p>
-            <div className="mt-4 flex justify-center gap-3">
+            <div className="mt-4 flex flex-wrap justify-center gap-3">
               <Link href={`/stories/${videoId}/edit`} className="btn-secondary">Edit Title/Prompt</Link>
-              <Link href={retryUrl} className="btn-primary">Try Again</Link>
+              <button type="button" onClick={regenerate} disabled={regenerating} className="btn-primary disabled:opacity-50">
+                {regenerating ? "Starting..." : "↻ Regenerate"}
+              </button>
+              <Link href={retryUrl} className="btn-secondary">New Story</Link>
+              <button
+                type="button"
+                onClick={deleteEpisode}
+                disabled={deleting}
+                className="btn-secondary !border-red-500/30 !text-red-300 hover:!text-red-200 disabled:opacity-50"
+              >
+                {deleting ? "Deleting..." : "Delete"}
+              </button>
             </div>
           </>
         )}

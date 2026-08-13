@@ -1,6 +1,7 @@
 import Link from "next/link";
 import HeroScene from "@/components/HeroScene";
 import CinematicAnimations from "@/components/CinematicAnimations";
+import { auth } from "@/auth";
 
 const FEATURES = [
   { icon: "✍️", title: "Prompt to Story", desc: "Describe an idea or paste a full screenplay — no editing skills required." },
@@ -11,7 +12,10 @@ const FEATURES = [
   { icon: "📱", title: "Vertical & Social Ready", desc: "1080×1920 MP4 optimized for TikTok, Reels, and Shorts." },
 ];
 
-export default function HomePage() {
+export default async function HomePage() {
+  const session = await auth();
+  const createStoryHref = session ? "/stories/create" : "/register";
+
   return (
     <>
       <CinematicAnimations />
@@ -41,7 +45,7 @@ export default function HomePage() {
           </p>
 
           <div data-hero-cta className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
-            <Link href="/register" className="btn-primary">
+            <Link href={createStoryHref} className="btn-primary">
               Create Cinematic Story
             </Link>
             <a href="#gallery" className="btn-secondary">
@@ -108,7 +112,7 @@ export default function HomePage() {
           <p className="mx-auto mt-4 max-w-xl text-zinc-400">
             Upgrade anytime for unlimited cinematic stories, priority rendering, and 4K exports.
           </p>
-          <Link href="/register" className="btn-primary mt-8 inline-flex">
+          <Link href={createStoryHref} className="btn-primary mt-8 inline-flex">
             Create Your First Story
           </Link>
         </div>

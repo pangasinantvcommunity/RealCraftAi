@@ -8,10 +8,12 @@ export default function EpisodeEditForm({
   videoId,
   initialTitle,
   initialPrompt,
+  redirectTo,
 }: {
   videoId: string;
   initialTitle: string;
   initialPrompt: string;
+  redirectTo: string;
 }) {
   const router = useRouter();
   const [title, setTitle] = useState(initialTitle);
@@ -36,7 +38,7 @@ export default function EpisodeEditForm({
         throw new Error(body.error || "Could not save changes.");
       }
 
-      router.push(`/stories/${videoId}`);
+      router.push(redirectTo);
       router.refresh();
     } catch (error) {
       setSubmitting(false);

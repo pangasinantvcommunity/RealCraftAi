@@ -6,7 +6,7 @@ import { remainingCredits } from "@/lib/story";
 import { inngest } from "@/inngest/client";
 import { processPrompt } from "@/lib/story-pipeline";
 import { getMockSceneImageUrl, slugify } from "@/lib/mock-story";
-import { buildProjectContext, computeEpisodeSceneCount } from "@/lib/project-memory";
+import { buildProjectContext, computeEpisodeSceneCount, computeEpisodePartCount } from "@/lib/project-memory";
 import type { ProjectContext } from "@/types/project";
 
 const MAX_PROMPT_LENGTH = 10000;
@@ -55,6 +55,7 @@ export async function POST(request: NextRequest) {
   const duration = Number.isFinite(body?.duration) ? Number(body.duration) : 45;
   const projectId = typeof body?.projectId === "string" && body.projectId ? body.projectId : null;
   const episodeTitle = typeof body?.title === "string" && body.title.trim() ? body.title.trim().slice(0, 120) : null;
+  const mode = body?.mode === "draft" ? "draft" : "generate";
 
   if (!prompt) {
     return NextResponse.json({ error: "Please describe a story before generating." }, { status: 422 });
@@ -62,12 +63,16 @@ export async function POST(request: NextRequest) {
   if (prompt.length > MAX_PROMPT_LENGTH) {
     return NextResponse.json({ error: `Prompts must be under ${MAX_PROMPT_LENGTH.toLocaleString()} characters.` }, { status: 422 });
   }
+  if (mode === "draft" && !projectId) {
+    return NextResponse.json({ error: "Drafts are only available for project episodes." }, { status: 422 });
+  }
 
   let style: string;
   let aspectRatio: string;
   let characters: ParsedCharacter[];
   let projectContext: ProjectContext | undefined;
   let sceneCount: number = storyConfig.defaultSceneCount;
+  let partCount: number | null = null;
 
   if (projectId) {
     // Episode generation inside a project: style/aspect ratio/characters are
@@ -87,10 +92,32 @@ export async function POST(request: NextRequest) {
     }));
     projectContext = context;
     sceneCount = computeEpisodeSceneCount(context.runtimeStructure);
+    partCount = computeEpisodePartCount(context.runtimeStructure);
   } else {
     style = typeof body?.style === "string" ? body.style : "3d-cinematic";
     aspectRatio = VALID_ASPECT_RATIOS.includes(body?.aspectRatio) ? body.aspectRatio : "9:16";
     characters = parseCharacters(body?.characters);
+  }
+
+  if (mode === "draft") {
+    const episodeNumber = (await prisma.video.count({ where: { projectId } })) + 1;
+    const draft = await prisma.video.create({
+      data: {
+        userId,
+        projectId,
+        status: "pending",
+        prompt,
+        style,
+        targetDuration: duration,
+        aspectRatio,
+        title: episodeTitle,
+        episodeNumber,
+        partCount,
+        sceneCount,
+        generationStatus: "draft",
+      },
+    });
+    return NextResponse.json({ id: draft.id, draft: true }, { status: 201 });
   }
 
   let story;
@@ -106,6 +133,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: message }, { status: 502 });
   }
 
+  const episodeNumber = projectId ? (await prisma.video.count({ where: { projectId } })) + 1 : null;
+
   const video = await prisma.video.create({
     data: {
       userId,
@@ -119,6 +148,10 @@ export async function POST(request: NextRequest) {
       summary: story.summary,
       emotionalArc: story.emotionalArc,
       metadata: isDevMode ? { devMode: true } : undefined,
+      episodeNumber,
+      partCount,
+      sceneCount,
+      generationStatus: "queued",
     },
   });
 

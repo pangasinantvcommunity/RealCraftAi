@@ -5,6 +5,7 @@ import { remainingCredits } from "@/lib/story";
 import { storyConfig } from "@/lib/config";
 import UpgradeModal from "@/components/UpgradeModal";
 import DevModeBadge from "@/components/DevModeBadge";
+import VideoCard from "@/components/VideoCard";
 import { STORY_STYLES } from "@/lib/story-options";
 
 function styleLabel(style: string | null): string | null {
@@ -127,53 +128,21 @@ export default async function DashboardPage({
           </div>
         ) : (
           videos.map((video) => (
-            <Link
+            <VideoCard
               key={video.id}
-              href={`/stories/${video.id}`}
-              className="tilt-card group glass-panel overflow-hidden"
-              data-tilt
-            >
-              <div className="relative aspect-[9/16] bg-gradient-to-br from-violet-900/40 to-cyan-900/20">
-                {video.status === "completed" && video.videoUrl ? (
-                  <video className="h-full w-full object-cover" muted loop src={video.videoUrl} />
-                ) : (
-                  <div className="flex h-full w-full items-center justify-center text-3xl">🎬</div>
-                )}
-                <span className="absolute left-3 top-3 flex items-center gap-1.5 rounded-full bg-black/60 px-3 py-1 text-[10px] uppercase tracking-wide text-white backdrop-blur">
-                  <span
-                    className={`status-dot ${
-                      video.status === "completed"
-                        ? "bg-cyan-400 text-cyan-400"
-                        : video.status === "failed"
-                          ? "bg-red-400 text-red-400"
-                          : "bg-violet-400 text-violet-400 animate-pulse"
-                    }`}
-                  />
-                  {video.status.replace(/_/g, " ")}
-                </span>
-                {video.project && (
-                  <span className="absolute right-3 top-3 rounded-full bg-violet-500/80 px-3 py-1 text-[10px] uppercase tracking-wide text-white backdrop-blur">
-                    {video.project.title}
-                  </span>
-                )}
-              </div>
-              <div className="p-4">
-                <p className="truncate text-sm text-zinc-300">
-                  {video.title || (video.transcript ? video.transcript.slice(0, 60) : "Processing your story...")}
-                </p>
-                <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-zinc-500">
-                  {styleLabel(video.style) && <span>{styleLabel(video.style)}</span>}
-                  {video.targetDuration && (
-                    <>
-                      <span className="text-zinc-700">•</span>
-                      <span>{video.targetDuration}s</span>
-                    </>
-                  )}
-                  <span className="text-zinc-700">•</span>
-                  <span>{video.createdAt.toLocaleDateString()}</span>
-                </div>
-              </div>
-            </Link>
+              video={{
+                id: video.id,
+                status: video.status,
+                videoUrl: video.videoUrl,
+                title: video.title,
+                transcript: video.transcript,
+                style: video.style,
+                targetDuration: video.targetDuration,
+                createdAt: video.createdAt,
+                projectTitle: video.project?.title ?? null,
+              }}
+              styleLabel={styleLabel(video.style)}
+            />
           ))
         )}
       </div>

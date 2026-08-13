@@ -27,22 +27,22 @@ export default function EpisodePromptForm({
   const [title, setTitle] = useState("");
   const [prompt, setPrompt] = useState("");
   const [duration, setDuration] = useState<number>(STORY_DURATIONS[1]);
-  const [submitting, setSubmitting] = useState(false);
+  const [submitting, setSubmitting] = useState<"draft" | "generate" | null>(null);
   const [errorMessage, setErrorMessage] = useState("");
 
   const styleLabel = STORY_STYLES.find((s) => s.value === visualStyle)?.label ?? visualStyle;
   const aspectLabel = ASPECT_RATIOS.find((a) => a.value === aspectRatio)?.label ?? aspectRatio;
 
-  const submit = async () => {
+  const submit = async (mode: "draft" | "generate") => {
     if (!prompt.trim() || submitting) return;
-    setSubmitting(true);
+    setSubmitting(mode);
     setErrorMessage("");
 
     try {
       const response = await fetch("/api/stories", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt, duration, projectId, title: title.trim() || undefined }),
+        body: JSON.stringify({ prompt, duration, projectId, title: title.trim() || undefined, mode }),
       });
 
       if (response.status === 429) {
@@ -56,9 +56,15 @@ export default function EpisodePromptForm({
       }
 
       const { id } = await response.json();
-      router.push(`/stories/${id}`);
+      if (mode === "draft") {
+        fireToast({ type: "info", message: "Episode saved as a draft." });
+        router.push(`/projects/${projectId}`);
+        router.refresh();
+      } else {
+        router.push(`/stories/${id}`);
+      }
     } catch (error) {
-      setSubmitting(false);
+      setSubmitting(null);
       const message = error instanceof Error ? error.message : "Something went wrong. Please try again.";
       setErrorMessage(message);
       fireToast({ type: "error", message });
@@ -92,7 +98,7 @@ export default function EpisodePromptForm({
         />
       </div>
 
-      <PromptEditor value={prompt} onChange={setPrompt} onSubmit={submit} />
+      <PromptEditor value={prompt} onChange={setPrompt} onSubmit={() => submit("draft")} />
 
       <div className="mt-6">
         <DurationSelector value={duration} onChange={setDuration} />
@@ -100,14 +106,27 @@ export default function EpisodePromptForm({
 
       {errorMessage && <p className="mt-4 text-center text-sm text-red-400">{errorMessage}</p>}
 
-      <button
-        type="button"
-        onClick={submit}
-        disabled={!prompt.trim() || submitting}
-        className="btn-primary mt-8 w-full"
-      >
-        {submitting ? "Generating..." : "Generate Episode"}
-      </button>
+      <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+        <button
+          type="button"
+          onClick={() => submit("draft")}
+          disabled={!prompt.trim() || !!submitting}
+          className="btn-primary flex-1"
+        >
+          {submitting === "draft" ? "Saving..." : "Save Episode Draft"}
+        </button>
+        <button
+          type="button"
+          onClick={() => submit("generate")}
+          disabled={!prompt.trim() || !!submitting}
+          className="btn-secondary flex-1"
+        >
+          {submitting === "generate" ? "Generating..." : "Save & Generate Now"}
+        </button>
+      </div>
+      <p className="mt-3 text-center text-xs text-zinc-500">
+        Save as a draft to generate later, or generate immediately.
+      </p>
     </div>
   );
 }

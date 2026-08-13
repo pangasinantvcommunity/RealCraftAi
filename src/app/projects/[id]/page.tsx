@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { STORY_STYLES, ASPECT_RATIOS } from "@/lib/story-options";
 import CharacterSheetWizard from "@/components/project/CharacterSheetWizard";
 import LocationWizard from "@/components/project/LocationWizard";
+import EpisodeTable from "@/components/project/EpisodeTable";
 import type { RuntimeStructure } from "@/types/project";
 
 function runtimeSummary(rs: RuntimeStructure | null): { label: string; value: string }[] {
@@ -108,29 +109,16 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
             <Link href={`/projects/${project.id}/episodes/new`} className="btn-primary mt-6 inline-flex">Generate Episode 1</Link>
           </div>
         ) : (
-          <div className="mt-4 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {episodesNewestFirst.map((video) => {
-              const episodeNumber = project.episodes.findIndex((e) => e.id === video.id) + 1;
-              return (
-                <Link key={video.id} href={`/stories/${video.id}`} className="tilt-card group glass-panel overflow-hidden" data-tilt>
-                  <div className="relative aspect-[9/16] bg-gradient-to-br from-violet-900/40 to-cyan-900/20">
-                    {video.status === "completed" && video.videoUrl ? (
-                      <video className="h-full w-full object-cover" muted loop src={video.videoUrl} />
-                    ) : (
-                      <div className="flex h-full w-full items-center justify-center text-3xl">🎬</div>
-                    )}
-                    <span className="absolute left-3 top-3 rounded-full bg-black/60 px-3 py-1 text-[10px] uppercase tracking-wide text-white backdrop-blur">
-                      Episode {episodeNumber}
-                    </span>
-                  </div>
-                  <div className="p-4">
-                    <p className="truncate text-sm text-zinc-300">{video.title || "Processing your episode..."}</p>
-                    <p className="mt-1 text-xs text-zinc-500">{video.createdAt.toLocaleDateString()}</p>
-                  </div>
-                </Link>
-              );
-            })}
-          </div>
+          <EpisodeTable
+            projectId={project.id}
+            episodes={episodesNewestFirst.map((video) => ({
+              id: video.id,
+              episodeNumber: video.episodeNumber ?? project.episodes.findIndex((e) => e.id === video.id) + 1,
+              title: video.title,
+              status: video.status,
+              generationStatus: video.generationStatus,
+            }))}
+          />
         )}
       </div>
     </section>

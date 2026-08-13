@@ -1,11 +1,13 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import gsap from "gsap";
 import { isDevMode } from "@/lib/config";
 import SceneStoryboard from "@/components/SceneStoryboard";
 import EmotionalArcChips from "@/components/EmotionalArcChips";
+import { fireToast } from "@/components/ToastStack";
 import type { RuntimeStructure } from "@/types/project";
 
 export type PreviewScene = { subtitle: string; imageUrl: string | null };
@@ -56,6 +58,7 @@ export default function StoryPreview({
   runtimeStructure = null,
   sceneCount,
   partsPerEpisode,
+  projectId,
 }: {
   videoId: string;
   videoUrl: string;
@@ -72,10 +75,14 @@ export default function StoryPreview({
   runtimeStructure?: RuntimeStructure | null;
   sceneCount?: number;
   partsPerEpisode?: number | null;
+  projectId?: string | null;
 }) {
   const isLandscape = aspectRatio === "16:9";
   useMagnetic();
+  const router = useRouter();
   const shareUrlRef = useRef<string>("");
+  const [regenerating, setRegenerating] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     shareUrlRef.current = window.location.href;
@@ -86,6 +93,43 @@ export default function StoryPreview({
       navigator.share({ title: "My RealCraft AI Story", url: shareUrlRef.current });
     } else {
       navigator.clipboard.writeText(shareUrlRef.current);
+    }
+  };
+
+  const regenerate = async () => {
+    if (regenerating) return;
+    if (!window.confirm("Regenerate this episode? The current video and scenes will be replaced.")) return;
+    setRegenerating(true);
+    try {
+      const response = await fetch(`/api/stories/${videoId}/regenerate`, { method: "POST" });
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        throw new Error(body.error || "Could not regenerate this episode.");
+      }
+      router.refresh();
+    } catch (error) {
+      setRegenerating(false);
+      const message = error instanceof Error ? error.message : "Could not regenerate this episode.";
+      fireToast({ type: "error", message });
+    }
+  };
+
+  const deleteEpisode = async () => {
+    if (deleting) return;
+    if (!window.confirm("Delete this episode? This cannot be undone.")) return;
+    setDeleting(true);
+    try {
+      const response = await fetch(`/api/stories/${videoId}`, { method: "DELETE" });
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        throw new Error(body.error || "Could not delete this episode.");
+      }
+      router.push(projectId ? `/projects/${projectId}` : "/dashboard");
+      router.refresh();
+    } catch (error) {
+      setDeleting(false);
+      const message = error instanceof Error ? error.message : "Could not delete this episode.";
+      fireToast({ type: "error", message });
     }
   };
 
@@ -202,9 +246,21 @@ export default function StoryPreview({
         <Link href={`/stories/${videoId}/edit`} data-magnetic className="btn-secondary">
           ✎ Edit
         </Link>
+        <button type="button" data-magnetic className="btn-secondary" onClick={regenerate} disabled={regenerating}>
+          {regenerating ? "Starting..." : "↻ Regenerate"}
+        </button>
         <Link href="/stories/create" data-magnetic className="btn-secondary">
           + Create Another Story
         </Link>
+        <button
+          type="button"
+          data-magnetic
+          className="btn-secondary !border-red-500/30 !text-red-300 hover:!text-red-200"
+          onClick={deleteEpisode}
+          disabled={deleting}
+        >
+          {deleting ? "Deleting..." : "🗑 Delete"}
+        </button>
       </div>
 
       <p className="relative z-10 mt-8 max-w-md text-center text-xs text-zinc-500">

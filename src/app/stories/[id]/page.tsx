@@ -1,4 +1,4 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { progressPercent } from "@/lib/story";
@@ -23,6 +23,10 @@ export default async function StoryPage({ params }: { params: Promise<{ id: stri
     notFound();
   }
 
+  if (video.generationStatus === "draft" && video.projectId) {
+    redirect(`/projects/${video.projectId}`);
+  }
+
   const emotionalArc = Array.isArray(video.emotionalArc) ? (video.emotionalArc as string[]) : [];
   const runtimeStructure = (video.project?.runtimeStructure as RuntimeStructure | null) ?? null;
 
@@ -44,6 +48,7 @@ export default async function StoryPage({ params }: { params: Promise<{ id: stri
         runtimeStructure={runtimeStructure}
         sceneCount={video.scenes.length}
         partsPerEpisode={runtimeStructure?.partsPerEpisode ?? null}
+        projectId={video.projectId}
       />
     );
   }
