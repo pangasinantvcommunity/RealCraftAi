@@ -87,11 +87,12 @@ export async function POST(_request: NextRequest, { params }: { params: Promise<
     });
   } catch (error) {
     console.error("processPrompt failed during regenerate", error);
+    const detail = error instanceof Error ? error.message : "Unknown error";
     await prisma.video.update({
       where: { id },
       data: {
         status: "failed",
-        metadata: { error: "Regeneration failed to start. Please try again.", failedAt: new Date().toISOString() },
+        metadata: { error: "Regeneration failed to start. Please try again.", detail, failedAt: new Date().toISOString() },
       },
     });
     return NextResponse.json({ error: "Regeneration failed to start. Please try again." }, { status: 502 });

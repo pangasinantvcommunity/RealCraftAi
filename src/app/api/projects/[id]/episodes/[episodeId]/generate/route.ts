@@ -61,11 +61,12 @@ export async function POST(
     });
   } catch (error) {
     console.error("processPrompt failed generating draft episode", error);
+    const detail = error instanceof Error ? error.message : "Unknown error";
     await prisma.video.update({
       where: { id: episodeId },
       data: {
         status: "failed",
-        metadata: { error: "Generation failed to start. Please try again.", failedAt: new Date().toISOString() },
+        metadata: { error: "Generation failed to start. Please try again.", detail, failedAt: new Date().toISOString() },
       },
     });
     return NextResponse.json({ error: "Generation failed to start. Please try again." }, { status: 502 });
