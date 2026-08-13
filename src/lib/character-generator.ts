@@ -1,7 +1,5 @@
-import OpenAI from "openai";
 import { isDevMode } from "@/lib/config";
-
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+import { gemini, GEMINI_TEXT_MODEL } from "@/lib/gemini";
 
 export type GeneratedCharacterSheet = {
   age: string;
@@ -13,7 +11,21 @@ export type GeneratedCharacterSheet = {
   cinematicNotes: string;
 };
 
-/** Deterministic, zero-cost character-sheet filler used in dev mode — no OpenAI call. */
+const CHARACTER_SHEET_SCHEMA = {
+  type: "object",
+  properties: {
+    age: { type: "string" },
+    gender: { type: "string" },
+    appearance: { type: "string" },
+    wardrobe: { type: "string" },
+    personality: { type: "string" },
+    voiceTone: { type: "string" },
+    cinematicNotes: { type: "string" },
+  },
+  required: ["age", "gender", "appearance", "wardrobe", "personality", "voiceTone", "cinematicNotes"],
+} as const;
+
+/** Deterministic, zero-cost character-sheet filler used in dev mode — no Gemini call. */
 function generateMockCharacterSheet(name: string, role: string): GeneratedCharacterSheet {
   const roleLabel = role.trim() || "supporting character";
   return {
@@ -32,24 +44,20 @@ export async function generateCharacterSheet(name: string, role: string): Promis
     return generateMockCharacterSheet(name, role);
   }
 
-  const completion = await openai.chat.completions.create({
-    model: process.env.OPENAI_TEXT_MODEL ?? "gpt-4o-mini",
-    response_format: { type: "json_object" },
-    messages: [
-      {
-        role: "system",
-        content:
-          "You are a character designer for cinematic AI-generated video. Given a character name and role, " +
-          "respond with JSON only, exactly matching this shape: " +
-          '{"age": string, "gender": string, "appearance": string, "wardrobe": string, "personality": string, ' +
-          '"voiceTone": string, "cinematicNotes": string}. Keep each field to 1-2 sentences. ' +
-          "appearance should be vivid and specific enough to keep the character visually consistent across scenes.",
-      },
-      { role: "user", content: `Name: ${name}\nRole: ${role || "unspecified"}` },
-    ],
+  const response = await gemini.models.generateContent({
+    model: GEMINI_TEXT_MODEL,
+    contents: `Name: ${name}\nRole: ${role || "unspecified"}`,
+    config: {
+      systemInstruction:
+        "You are a character designer for cinematic AI-generated video. Given a character name and role, " +
+        "produce a character sheet. Keep each field to 1-2 sentences. appearance should be vivid and specific " +
+        "enough to keep the character visually consistent across scenes.",
+      responseMimeType: "application/json",
+      responseSchema: CHARACTER_SHEET_SCHEMA,
+    },
   });
 
-  const raw = completion.choices[0]?.message?.content;
+  const raw = response.text;
   if (!raw) throw new Error("Character generator returned no content.");
 
   return JSON.parse(raw) as GeneratedCharacterSheet;

@@ -1,7 +1,7 @@
-import OpenAI from "openai";
 import { isDevMode, storyConfig } from "@/lib/config";
 import { generateMockStory } from "@/lib/mock-story";
 import { buildHiddenContext } from "@/lib/prompt-builder";
+import { gemini, GEMINI_TEXT_MODEL } from "@/lib/gemini";
 import type { ProjectContext } from "@/types/project";
 
 export type ProcessedScene = {
@@ -24,8 +24,6 @@ export type ProcessedStory = {
 export type CharacterInput = { name: string; description?: string };
 export type LocationInput = { name: string; description: string; mood?: string };
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-
 export function normalizePrompt(prompt: string): string {
   return prompt.trim().replace(/\s+/g, " ").slice(0, 10000);
 }
@@ -34,7 +32,7 @@ export function normalizePrompt(prompt: string): string {
  * Entry point: text prompt -> full structured cinematic story breakdown.
  *
  * Dev mode runs each pipeline step deterministically with no external calls
- * (see mock-story.ts). Outside dev mode, one structured OpenAI completion
+ * (see mock-story.ts). Outside dev mode, one structured Gemini completion
  * produces the full breakdown in a single round trip — cheaper and faster
  * than five sequential calls — and summarizeStory/extractCharacters/
  * extractLocations/detectEmotionalArc/generateSixScenes below are thin
@@ -73,7 +71,7 @@ export async function processPrompt(input: {
     });
   }
 
-  return generateStoryWithOpenAI(prompt, input.style, input.duration, {
+  return generateStoryWithGemini(prompt, input.style, input.duration, {
     characters: input.characters,
     locations: input.locations,
     storyBible: input.storyBible,
@@ -94,7 +92,32 @@ function formatLocationBrief(locations: LocationInput[]): string {
     .join(". ");
 }
 
-async function generateStoryWithOpenAI(
+const STORY_RESPONSE_SCHEMA = {
+  type: "object",
+  properties: {
+    title: { type: "string" },
+    summary: { type: "string" },
+    emotionalArc: { type: "array", items: { type: "string" } },
+    characters: { type: "array", items: { type: "string" } },
+    locations: { type: "array", items: { type: "string" } },
+    scenes: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          order: { type: "number" },
+          title: { type: "string" },
+          subtitle: { type: "string" },
+          imagePrompt: { type: "string" },
+        },
+        required: ["order", "title", "subtitle", "imagePrompt"],
+      },
+    },
+  },
+  required: ["title", "summary", "emotionalArc", "characters", "locations", "scenes"],
+} as const;
+
+async function generateStoryWithGemini(
   prompt: string,
   style: string,
   duration: number,
@@ -107,7 +130,7 @@ async function generateStoryWithOpenAI(
   },
 ): Promise<ProcessedStory> {
   if (isDevMode) {
-    throw new Error("OpenAI API disabled in development mode");
+    throw new Error("Gemini API disabled in development mode");
   }
 
   const { characters, locations, storyBible, projectContext, sceneCount } = options;
@@ -133,29 +156,23 @@ async function generateStoryWithOpenAI(
     contextBlock = `${characterInstruction}${locationInstruction}${storyBibleInstruction}`;
   }
 
-  const completion = await openai.chat.completions.create({
-    model: process.env.OPENAI_TEXT_MODEL ?? "gpt-4o-mini",
-    response_format: { type: "json_object" },
-    messages: [
-      {
-        role: "system",
-        content:
-          "You are a cinematic story architect for short vertical AI-generated videos. Given a prompt " +
-          "(which may be a short idea or a full screenplay), respond with JSON only, exactly matching this shape: " +
-          '{"title": string, "summary": string (2-3 sentences), "emotionalArc": string[] (3-5 beats, e.g. ' +
-          '"Setup", "Discovery", "Climax"), "characters": string[], "locations": string[], ' +
-          '"scenes": [{"order": number, "title": string, "subtitle": string, "imagePrompt": string}]} ' +
-          `with exactly ${sceneCount} scenes covering the story beginning to end. imagePrompt should be a vivid, ` +
-          "cinematic image-generation prompt for that scene in the requested visual style.",
-      },
-      {
-        role: "user",
-        content: `Style: ${style}\nTarget duration: ${duration} seconds${contextBlock}\n\nPrompt:\n${prompt}`,
-      },
-    ],
+  const systemInstruction =
+    "You are a cinematic story architect for short vertical AI-generated videos. Given a prompt " +
+    "(which may be a short idea or a full screenplay), produce a structured breakdown with " +
+    `exactly ${sceneCount} scenes covering the story beginning to end. imagePrompt should be a vivid, ` +
+    "cinematic image-generation prompt for that scene in the requested visual style.";
+
+  const response = await gemini.models.generateContent({
+    model: GEMINI_TEXT_MODEL,
+    contents: `Style: ${style}\nTarget duration: ${duration} seconds${contextBlock}\n\nPrompt:\n${prompt}`,
+    config: {
+      systemInstruction,
+      responseMimeType: "application/json",
+      responseSchema: STORY_RESPONSE_SCHEMA,
+    },
   });
 
-  const raw = completion.choices[0]?.message?.content;
+  const raw = response.text;
   if (!raw) throw new Error("Story pipeline returned no content.");
 
   let parsed: Omit<ProcessedStory, "scenes"> & { scenes: Array<Omit<ProcessedScene, "durationSeconds">> };
@@ -163,8 +180,8 @@ async function generateStoryWithOpenAI(
     parsed = JSON.parse(raw);
   } catch {
     console.error(
-      `Story pipeline returned invalid JSON (finish_reason=${completion.choices[0]?.finish_reason}, ` +
-        `requested sceneCount=${sceneCount}, raw length=${raw.length}). Tail: ${raw.slice(-300)}`,
+      `Story pipeline returned invalid JSON (requested sceneCount=${sceneCount}, raw length=${raw.length}). ` +
+        `Tail: ${raw.slice(-300)}`,
     );
     throw new Error("Story pipeline returned an incomplete or invalid response. Please try again.");
   }
