@@ -158,9 +158,19 @@ async function generateStoryWithOpenAI(
   const raw = completion.choices[0]?.message?.content;
   if (!raw) throw new Error("Story pipeline returned no content.");
 
-  const parsed = JSON.parse(raw) as Omit<ProcessedStory, "scenes"> & {
-    scenes: Array<Omit<ProcessedScene, "durationSeconds">>;
-  };
+  let parsed: Omit<ProcessedStory, "scenes"> & { scenes: Array<Omit<ProcessedScene, "durationSeconds">> };
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    console.error(
+      `Story pipeline returned invalid JSON (finish_reason=${completion.choices[0]?.finish_reason}, ` +
+        `requested sceneCount=${sceneCount}, raw length=${raw.length}). Tail: ${raw.slice(-300)}`,
+    );
+    throw new Error("Story pipeline returned an incomplete or invalid response. Please try again.");
+  }
+  if (!Array.isArray(parsed.scenes) || parsed.scenes.length === 0) {
+    throw new Error("Story pipeline returned no scenes. Please try again.");
+  }
 
   return {
     ...parsed,

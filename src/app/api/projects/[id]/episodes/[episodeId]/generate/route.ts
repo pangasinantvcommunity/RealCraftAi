@@ -22,11 +22,19 @@ export async function POST(
   if (!video || video.projectId !== projectId || video.userId !== session.user.id) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
-  if (video.generationStatus !== "draft") {
-    return NextResponse.json({ error: "This episode has already started generating." }, { status: 409 });
-  }
   if (!video.prompt) {
     return NextResponse.json({ error: "This draft has no saved prompt to generate from." }, { status: 422 });
+  }
+
+  // Atomically claim the draft so a slow generation call (which can take
+  // 10-30s against real OpenAI) can't be raced by a second click or a
+  // reload landing back on a still-"draft"-looking table row.
+  const claim = await prisma.video.updateMany({
+    where: { id: episodeId, generationStatus: "draft" },
+    data: { generationStatus: "queued" },
+  });
+  if (claim.count === 0) {
+    return NextResponse.json({ error: "This episode has already started generating." }, { status: 409 });
   }
 
   const context = await buildProjectContext(projectId, session.user.id);
@@ -57,7 +65,6 @@ export async function POST(
       where: { id: episodeId },
       data: {
         status: "failed",
-        generationStatus: "queued",
         metadata: { error: "Generation failed to start. Please try again.", failedAt: new Date().toISOString() },
       },
     });
@@ -70,7 +77,6 @@ export async function POST(
       title: video.title ?? story.title,
       summary: story.summary,
       emotionalArc: story.emotionalArc,
-      generationStatus: "queued",
       metadata: isDevMode ? { devMode: true } : undefined,
     },
   });

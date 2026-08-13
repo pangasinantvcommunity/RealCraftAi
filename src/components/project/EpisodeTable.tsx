@@ -53,6 +53,27 @@ export default function EpisodeTable({ projectId, episodes }: { projectId: strin
       setBusyId(null);
       const message = error instanceof Error ? error.message : "Could not start generation.";
       fireToast({ type: "error", message });
+      // The row may already be out of "draft" (claimed by an earlier
+      // request) — refresh so the table stops showing a stale Draft badge.
+      router.refresh();
+    }
+  };
+
+  const regenerate = async (episode: EpisodeRow) => {
+    if (busyId) return;
+    setBusyId(episode.id);
+    try {
+      const response = await fetch(`/api/stories/${episode.id}/regenerate`, { method: "POST" });
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        throw new Error(body.error || "Could not restart generation.");
+      }
+      router.push(`/stories/${episode.id}`);
+    } catch (error) {
+      setBusyId(null);
+      const message = error instanceof Error ? error.message : "Could not restart generation.";
+      fireToast({ type: "error", message });
+      router.refresh();
     }
   };
 
@@ -114,6 +135,16 @@ export default function EpisodeTable({ projectId, episodes }: { projectId: strin
                       className="text-emerald-300 transition-colors hover:text-emerald-200 disabled:opacity-50"
                     >
                       {busyId === episode.id ? "Starting..." : "Generate"}
+                    </button>
+                  )}
+                  {episode.generationStatus !== "draft" && (episode.status === "failed" || episode.status === "completed") && (
+                    <button
+                      type="button"
+                      onClick={() => regenerate(episode)}
+                      disabled={busyId === episode.id}
+                      className="text-emerald-300 transition-colors hover:text-emerald-200 disabled:opacity-50"
+                    >
+                      {busyId === episode.id ? "Starting..." : "Regenerate"}
                     </button>
                   )}
                   <Link href={`/stories/${episode.id}/edit`} className="text-violet-300 transition-colors hover:text-violet-200">
