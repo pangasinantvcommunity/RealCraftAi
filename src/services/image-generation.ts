@@ -4,6 +4,7 @@ import { isDevMode } from "@/lib/config";
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 export type ImageSize = "1024x1536" | "1536x1024";
+export type ImageQuality = "low" | "medium" | "high";
 
 async function fetchImageBuffer(url: string): Promise<{ buffer: Buffer; contentType: string }> {
   if (url.startsWith("data:")) {
@@ -20,7 +21,7 @@ async function fetchImageBuffer(url: string): Promise<{ buffer: Buffer; contentT
 
 export async function generateSceneImage(
   prompt: string,
-  options?: { size?: ImageSize; referenceImageUrls?: string[] },
+  options?: { size?: ImageSize; quality?: ImageQuality; referenceImageUrls?: string[] },
 ): Promise<Buffer> {
   if (isDevMode) {
     throw new Error("OpenAI API disabled in development mode");
@@ -28,6 +29,7 @@ export async function generateSceneImage(
 
   const model = process.env.OPENAI_IMAGE_MODEL ?? "gpt-image-1";
   const size = options?.size ?? "1024x1536";
+  const quality = options?.quality ?? "low";
   const referenceImageUrls = options?.referenceImageUrls ?? [];
 
   const response =
@@ -42,9 +44,10 @@ export async function generateSceneImage(
           ),
           prompt,
           size,
+          quality,
           n: 1,
         })
-      : await openai.images.generate({ model, prompt, size, n: 1 });
+      : await openai.images.generate({ model, prompt, size, quality, n: 1 });
 
   const b64 = response.data?.[0]?.b64_json;
   if (!b64) {
