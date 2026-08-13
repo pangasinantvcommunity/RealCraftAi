@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
+import { isSuperAdmin } from "@/lib/auth/is-super-admin";
 
 const schema = z.object({
   name: z.string().min(1).max(255),
@@ -28,9 +29,15 @@ export async function POST(request: NextRequest) {
   }
 
   const passwordHash = await bcrypt.hash(password, 12);
+  const bootstrapAdmin = isSuperAdmin(email);
 
   const user = await prisma.user.create({
-    data: { name, email, passwordHash },
+    data: {
+      name,
+      email,
+      passwordHash,
+      ...(bootstrapAdmin ? { role: "super_admin" as const, videoCredits: 101 } : {}),
+    },
     select: { id: true, name: true, email: true },
   });
 

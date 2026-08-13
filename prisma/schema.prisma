@@ -18,11 +18,18 @@ enum VideoStatus {
   failed
 }
 
+enum UserRole {
+  user
+  super_admin
+}
+
 model User {
   id           String   @id @default(uuid())
   name         String
   email        String   @unique
   passwordHash String   @map("password_hash")
+  role         UserRole @default(user)
+  videoCredits Int      @default(3) @map("video_credits")
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 
