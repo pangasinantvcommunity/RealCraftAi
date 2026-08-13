@@ -6,6 +6,7 @@ import { inngest } from "@/inngest/client";
 import { processPrompt } from "@/lib/story-pipeline";
 import { getMockSceneImageUrl, slugify } from "@/lib/mock-story";
 import { buildProjectContext, computeEpisodeSceneCount } from "@/lib/project-memory";
+import { canAccessResource } from "@/lib/auth/permissions";
 
 /** Manually starts generation for a draft episode saved via "Save Episode Draft". */
 export async function POST(
@@ -18,8 +19,15 @@ export async function POST(
   }
 
   const { id: projectId, episodeId } = await params;
-  const video = await prisma.video.findUnique({ where: { id: episodeId } });
-  if (!video || video.projectId !== projectId || video.userId !== session.user.id) {
+  const video = await prisma.video.findUnique({
+    where: { id: episodeId },
+    include: { user: { select: { id: true, role: true } } },
+  });
+  if (
+    !video ||
+    video.projectId !== projectId ||
+    !canAccessResource(session.user, { id: video.user.id, role: video.user.role })
+  ) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
   if (!video.prompt) {
@@ -37,7 +45,7 @@ export async function POST(
     return NextResponse.json({ error: "This episode has already started generating." }, { status: 409 });
   }
 
-  const context = await buildProjectContext(projectId, session.user.id);
+  const context = await buildProjectContext(projectId, session.user);
   if (!context) {
     return NextResponse.json({ error: "Project not found." }, { status: 404 });
   }

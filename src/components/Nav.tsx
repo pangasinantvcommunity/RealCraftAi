@@ -2,20 +2,13 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { useSession, signOut } from "next-auth/react";
+import { useSession } from "next-auth/react";
 import DevModeBadge from "@/components/DevModeBadge";
+import LogoutButton from "@/components/LogoutButton";
 
 export default function Nav() {
   const [scrolled, setScrolled] = useState(false);
   const { data: session } = useSession();
-  const router = useRouter();
-
-  const handleLogout = async () => {
-    await signOut({ redirect: false });
-    router.push("/");
-    router.refresh();
-  };
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 24);
@@ -50,16 +43,28 @@ export default function Nav() {
           <DevModeBadge />
           {session ? (
             <>
+              <Link
+                href="/profile"
+                className="flex items-center gap-2 text-sm text-zinc-300 transition-colors hover:text-white"
+              >
+                {session.user.profilePicture ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={session.user.profilePicture}
+                    alt={session.user.name ?? "Profile"}
+                    className="h-6 w-6 rounded-full object-cover"
+                  />
+                ) : (
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white/10 text-[10px] uppercase">
+                    {session.user.name?.[0] ?? "?"}
+                  </span>
+                )}
+                <span className="hidden sm:inline">{session.user.name}</span>
+              </Link>
               <Link href="/dashboard" className="btn-secondary !px-5 !py-2 text-xs">
                 Dashboard
               </Link>
-              <button
-                type="button"
-                onClick={handleLogout}
-                className="text-sm text-zinc-300 transition-colors hover:text-white"
-              >
-                Log out
-              </button>
+              <LogoutButton className="text-sm text-zinc-300 transition-colors hover:text-white" />
             </>
           ) : (
             <>

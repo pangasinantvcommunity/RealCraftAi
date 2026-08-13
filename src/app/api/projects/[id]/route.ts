@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { sanitizeRuntimeStructure } from "@/lib/project-memory";
+import { canAccessResource } from "@/lib/auth/permissions";
 
 const VALID_ASPECT_RATIOS = ["9:16", "16:9"];
 
@@ -14,8 +15,8 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   }
 
   const { id } = await params;
-  const existing = await prisma.project.findUnique({ where: { id } });
-  if (!existing || existing.userId !== session.user.id) {
+  const existing = await prisma.project.findUnique({ where: { id }, include: { user: { select: { id: true, role: true } } } });
+  if (!existing || !canAccessResource(session.user, { id: existing.user.id, role: existing.user.role })) {
     return NextResponse.json({ error: "Project not found." }, { status: 404 });
   }
 
@@ -53,8 +54,8 @@ export async function DELETE(_request: NextRequest, { params }: { params: Promis
   }
 
   const { id } = await params;
-  const existing = await prisma.project.findUnique({ where: { id } });
-  if (!existing || existing.userId !== session.user.id) {
+  const existing = await prisma.project.findUnique({ where: { id }, include: { user: { select: { id: true, role: true } } } });
+  if (!existing || !canAccessResource(session.user, { id: existing.user.id, role: existing.user.role })) {
     return NextResponse.json({ error: "Project not found." }, { status: 404 });
   }
 

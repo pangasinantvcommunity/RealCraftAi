@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { progressPercent } from "@/lib/story";
 import StatusPoller from "@/components/StatusPoller";
 import StoryPreview from "@/components/StoryPreview";
+import { canAccessResource } from "@/lib/auth/permissions";
 import type { RuntimeStructure } from "@/types/project";
 
 export default async function StoryPage({ params }: { params: Promise<{ id: string }> }) {
@@ -16,10 +17,11 @@ export default async function StoryPage({ params }: { params: Promise<{ id: stri
       scenes: { orderBy: { sceneOrder: "asc" } },
       characters: { orderBy: { sortOrder: "asc" } },
       project: { include: { locations: { orderBy: { createdAt: "asc" } } } },
+      user: { select: { id: true, role: true } },
     },
   });
 
-  if (!video || video.userId !== session!.user.id) {
+  if (!video || !canAccessResource(session!.user, { id: video.user.id, role: video.user.role })) {
     notFound();
   }
 

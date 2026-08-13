@@ -1,13 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { canAccessResource } from "@/lib/auth/permissions";
+import type { Viewer } from "@/types/project";
 
-async function loadOwnedLocation(projectId: string, locationId: string, userId: string) {
+async function loadOwnedLocation(projectId: string, locationId: string, viewer: Viewer) {
   const location = await prisma.projectLocation.findUnique({
     where: { id: locationId },
-    include: { project: true },
+    include: { project: { include: { user: { select: { id: true, role: true } } } } },
   });
-  if (!location || location.projectId !== projectId || location.project.userId !== userId) {
+  if (
+    !location ||
+    location.projectId !== projectId ||
+    !canAccessResource(viewer, { id: location.project.user.id, role: location.project.user.role })
+  ) {
     return null;
   }
   return location;
@@ -23,7 +29,7 @@ export async function PATCH(
   }
 
   const { id: projectId, locationId } = await params;
-  const existing = await loadOwnedLocation(projectId, locationId, session.user.id);
+  const existing = await loadOwnedLocation(projectId, locationId, session.user);
   if (!existing) {
     return NextResponse.json({ error: "Location not found." }, { status: 404 });
   }
@@ -56,12 +62,8 @@ export async function DELETE(
   }
 
   const { id: projectId, locationId } = await params;
-  const location = await prisma.projectLocation.findUnique({
-    where: { id: locationId },
-    include: { project: true },
-  });
-
-  if (!location || location.projectId !== projectId || location.project.userId !== session.user.id) {
+  const existing = await loadOwnedLocation(projectId, locationId, session.user);
+  if (!existing) {
     return NextResponse.json({ error: "Location not found." }, { status: 404 });
   }
 

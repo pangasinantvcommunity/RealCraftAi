@@ -5,6 +5,7 @@ import { progressPercent } from "@/lib/story";
 import { isDevMode } from "@/lib/config";
 import { getSimulatedProgress } from "@/lib/mock-progress";
 import { getMockVideoUrl } from "@/lib/mock-video";
+import { canAccessResource } from "@/lib/auth/permissions";
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
@@ -13,9 +14,9 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   }
 
   const { id } = await params;
-  const video = await prisma.video.findUnique({ where: { id } });
+  const video = await prisma.video.findUnique({ where: { id }, include: { user: { select: { id: true, role: true } } } });
 
-  if (!video || video.userId !== session.user.id) {
+  if (!video || !canAccessResource(session.user, { id: video.user.id, role: video.user.role })) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 

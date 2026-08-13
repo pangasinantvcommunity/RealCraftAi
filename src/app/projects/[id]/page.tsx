@@ -6,6 +6,7 @@ import { STORY_STYLES, ASPECT_RATIOS } from "@/lib/story-options";
 import CharacterSheetWizard from "@/components/project/CharacterSheetWizard";
 import LocationWizard from "@/components/project/LocationWizard";
 import EpisodeTable from "@/components/project/EpisodeTable";
+import { canAccessResource } from "@/lib/auth/permissions";
 import type { RuntimeStructure } from "@/types/project";
 
 function runtimeSummary(rs: RuntimeStructure | null): { label: string; value: string }[] {
@@ -30,11 +31,12 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
     include: {
       characters: { orderBy: { createdAt: "asc" } },
       locations: { orderBy: { createdAt: "asc" } },
-      episodes: { orderBy: { createdAt: "asc" } },
+      episodes: { orderBy: { createdAt: "asc" }, include: { user: { select: { role: true } } } },
+      user: { select: { id: true, role: true } },
     },
   });
 
-  if (!project || project.userId !== session!.user.id) {
+  if (!project || !canAccessResource(session!.user, { id: project.user.id, role: project.user.role })) {
     notFound();
   }
 
@@ -111,12 +113,15 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
         ) : (
           <EpisodeTable
             projectId={project.id}
+            viewerRole={session!.user.role}
             episodes={episodesNewestFirst.map((video) => ({
               id: video.id,
               episodeNumber: video.episodeNumber ?? project.episodes.findIndex((e) => e.id === video.id) + 1,
               title: video.title,
               status: video.status,
               generationStatus: video.generationStatus,
+              publishStatus: video.publishStatus,
+              ownerRole: video.user.role,
             }))}
           />
         )}

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { generateCharacterSheet } from "@/lib/character-generator";
+import { canAccessResource } from "@/lib/auth/permissions";
 
 /** Auto-fills a character sheet draft from just a name + role. Not persisted — the client reviews/edits before saving. */
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -11,8 +12,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   }
 
   const { id: projectId } = await params;
-  const project = await prisma.project.findUnique({ where: { id: projectId } });
-  if (!project || project.userId !== session.user.id) {
+  const project = await prisma.project.findUnique({ where: { id: projectId }, include: { user: { select: { id: true, role: true } } } });
+  if (!project || !canAccessResource(session.user, { id: project.user.id, role: project.user.role })) {
     return NextResponse.json({ error: "Project not found." }, { status: 404 });
   }
 

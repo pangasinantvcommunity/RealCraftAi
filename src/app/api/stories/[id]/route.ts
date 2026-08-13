@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { deleteBlob } from "@/lib/storage";
+import { canAccessResource } from "@/lib/auth/permissions";
+import { logAudit } from "@/lib/audit";
 
 const MAX_PROMPT_LENGTH = 10000;
 const IN_PROGRESS_STATUSES = ["pending", "transcribing", "creating_scenes", "generating_images", "rendering"];
@@ -14,8 +16,8 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   }
 
   const { id } = await params;
-  const video = await prisma.video.findUnique({ where: { id } });
-  if (!video || video.userId !== session.user.id) {
+  const video = await prisma.video.findUnique({ where: { id }, include: { user: { select: { id: true, role: true } } } });
+  if (!video || !canAccessResource(session.user, { id: video.user.id, role: video.user.role })) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
@@ -30,13 +32,25 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     return NextResponse.json({ error: "Prompt cannot be empty." }, { status: 422 });
   }
 
+  const isNonOwnerEdit = session.user.id !== video.user.id;
+
   await prisma.video.update({
     where: { id },
     data: {
       ...(title !== undefined ? { title } : {}),
       ...(prompt !== undefined ? { prompt } : {}),
+      ...(isNonOwnerEdit ? { lastModifiedBy: session.user.id } : {}),
     },
   });
+
+  if (isNonOwnerEdit) {
+    await logAudit({
+      actor: { id: session.user.id, name: session.user.name ?? session.user.email ?? "Unknown", role: session.user.role },
+      action: "episode_modified",
+      targetType: "episode",
+      targetId: id,
+    });
+  }
 
   return NextResponse.json({ id }, { status: 200 });
 }
@@ -49,8 +63,11 @@ export async function DELETE(_request: NextRequest, { params }: { params: Promis
   }
 
   const { id } = await params;
-  const video = await prisma.video.findUnique({ where: { id }, include: { scenes: true } });
-  if (!video || video.userId !== session.user.id) {
+  const video = await prisma.video.findUnique({
+    where: { id },
+    include: { scenes: true, user: { select: { id: true, role: true } } },
+  });
+  if (!video || !canAccessResource(session.user, { id: video.user.id, role: video.user.role })) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
@@ -64,6 +81,15 @@ export async function DELETE(_request: NextRequest, { params }: { params: Promis
   await Promise.all(blobUrls.map((url) => deleteBlob(url).catch(() => {})));
 
   await prisma.video.delete({ where: { id } });
+
+  if (session.user.id !== video.user.id) {
+    await logAudit({
+      actor: { id: session.user.id, name: session.user.name ?? session.user.email ?? "Unknown", role: session.user.role },
+      action: "episode_deleted",
+      targetType: "episode",
+      targetId: id,
+    });
+  }
 
   return NextResponse.json({ ok: true }, { status: 200 });
 }

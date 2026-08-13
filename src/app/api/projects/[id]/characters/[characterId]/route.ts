@@ -1,13 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { canAccessResource } from "@/lib/auth/permissions";
+import type { Viewer } from "@/types/project";
 
-async function loadOwnedCharacter(projectId: string, characterId: string, userId: string) {
+async function loadOwnedCharacter(projectId: string, characterId: string, viewer: Viewer) {
   const character = await prisma.projectCharacter.findUnique({
     where: { id: characterId },
-    include: { project: true },
+    include: { project: { include: { user: { select: { id: true, role: true } } } } },
   });
-  if (!character || character.projectId !== projectId || character.project.userId !== userId) {
+  if (
+    !character ||
+    character.projectId !== projectId ||
+    !canAccessResource(viewer, { id: character.project.user.id, role: character.project.user.role })
+  ) {
     return null;
   }
   return character;
@@ -23,7 +29,7 @@ export async function PATCH(
   }
 
   const { id: projectId, characterId } = await params;
-  const existing = await loadOwnedCharacter(projectId, characterId, session.user.id);
+  const existing = await loadOwnedCharacter(projectId, characterId, session.user);
   if (!existing) {
     return NextResponse.json({ error: "Character not found." }, { status: 404 });
   }
@@ -69,12 +75,8 @@ export async function DELETE(
   }
 
   const { id: projectId, characterId } = await params;
-  const character = await prisma.projectCharacter.findUnique({
-    where: { id: characterId },
-    include: { project: true },
-  });
-
-  if (!character || character.projectId !== projectId || character.project.userId !== session.user.id) {
+  const existing = await loadOwnedCharacter(projectId, characterId, session.user);
+  if (!existing) {
     return NextResponse.json({ error: "Character not found." }, { status: 404 });
   }
 

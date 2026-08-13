@@ -8,6 +8,8 @@ import { processPrompt } from "@/lib/story-pipeline";
 import { getMockSceneImageUrl, slugify } from "@/lib/mock-story";
 import { buildProjectContext, computeEpisodeSceneCount } from "@/lib/project-memory";
 import { deleteBlob } from "@/lib/storage";
+import { canAccessResource } from "@/lib/auth/permissions";
+import { logAudit } from "@/lib/audit";
 import type { ProjectContext } from "@/types/project";
 
 const REGENERATABLE_STATUSES = ["completed", "failed"];
@@ -26,8 +28,11 @@ export async function POST(_request: NextRequest, { params }: { params: Promise<
   }
 
   const { id } = await params;
-  const video = await prisma.video.findUnique({ where: { id }, include: { scenes: true, characters: true } });
-  if (!video || video.userId !== session.user.id) {
+  const video = await prisma.video.findUnique({
+    where: { id },
+    include: { scenes: true, characters: true, user: { select: { id: true, role: true } } },
+  });
+  if (!video || !canAccessResource(session.user, { id: video.user.id, role: video.user.role })) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
@@ -43,7 +48,7 @@ export async function POST(_request: NextRequest, { params }: { params: Promise<
   let sceneCount: number = storyConfig.defaultSceneCount;
 
   if (video.projectId) {
-    const context = await buildProjectContext(video.projectId, session.user.id);
+    const context = await buildProjectContext(video.projectId, session.user);
     if (!context) {
       return NextResponse.json({ error: "Project not found." }, { status: 404 });
     }
@@ -129,6 +134,17 @@ export async function POST(_request: NextRequest, { params }: { params: Promise<
 
   if (!isDevMode) {
     await inngest.send({ name: "story/generate.requested", data: { videoId: id } });
+  }
+
+  if (session.user.id !== video.user.id) {
+    await prisma.video.update({ where: { id }, data: { lastModifiedBy: session.user.id } });
+    await logAudit({
+      actor: { id: session.user.id, name: session.user.name ?? session.user.email ?? "Unknown", role: session.user.role },
+      action: "episode_modified",
+      targetType: "episode",
+      targetId: id,
+      metadata: { kind: "regenerate" },
+    });
   }
 
   return NextResponse.json({ id }, { status: 200 });

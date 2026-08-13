@@ -2,13 +2,14 @@ import { notFound } from "next/navigation";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import EpisodeEditForm from "@/components/EpisodeEditForm";
+import { canAccessResource } from "@/lib/auth/permissions";
 
 export default async function EditStoryPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
   const { id } = await params;
 
-  const video = await prisma.video.findUnique({ where: { id } });
-  if (!video || video.userId !== session!.user.id) {
+  const video = await prisma.video.findUnique({ where: { id }, include: { user: { select: { id: true, role: true } } } });
+  if (!video || !canAccessResource(session!.user, { id: video.user.id, role: video.user.role })) {
     notFound();
   }
 

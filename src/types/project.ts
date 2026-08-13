@@ -1,3 +1,7 @@
+import type { UserRole } from "@prisma/client";
+
+export type Viewer = { id: string; role: UserRole };
+
 export type RuntimeStructure = {
   totalRuntimeSeconds?: number;
   episodes?: number;
@@ -39,6 +43,8 @@ export type Project = {
   runtimeStructure: RuntimeStructure | null;
   visualStyle: string;
   aspectRatio: string;
+  ownerId: string;
+  ownerRole: UserRole;
 };
 
 export type ProjectContext = Project & {

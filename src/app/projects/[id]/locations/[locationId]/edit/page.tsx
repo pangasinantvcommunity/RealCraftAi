@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import LocationEditForm from "@/components/project/LocationEditForm";
+import { canAccessResource } from "@/lib/auth/permissions";
 
 export default async function EditLocationPage({
   params,
@@ -13,10 +14,14 @@ export default async function EditLocationPage({
 
   const location = await prisma.projectLocation.findUnique({
     where: { id: locationId },
-    include: { project: true },
+    include: { project: { include: { user: { select: { id: true, role: true } } } } },
   });
 
-  if (!location || location.projectId !== projectId || location.project.userId !== session!.user.id) {
+  if (
+    !location ||
+    location.projectId !== projectId ||
+    !canAccessResource(session!.user, { id: location.project.user.id, role: location.project.user.role })
+  ) {
     notFound();
   }
 

@@ -7,6 +7,7 @@ import UpgradeModal from "@/components/UpgradeModal";
 import DevModeBadge from "@/components/DevModeBadge";
 import VideoCard from "@/components/VideoCard";
 import { STORY_STYLES } from "@/lib/story-options";
+import { rolesOutrankedBy } from "@/lib/auth/permissions";
 
 function styleLabel(style: string | null): string | null {
   if (!style) return null;
@@ -20,9 +21,10 @@ export default async function DashboardPage({
 }) {
   const session = await auth();
   const userId = session!.user.id;
+  const manageableRoles = rolesOutrankedBy(session!.user.role);
   const { limitReached } = await searchParams;
 
-  const [videos, credits, totalCount, completedCount, projects] = await Promise.all([
+  const [videos, credits, totalCount, completedCount, projects, teamVideos] = await Promise.all([
     prisma.video.findMany({
       where: { userId },
       orderBy: { createdAt: "desc" },
@@ -38,6 +40,14 @@ export default async function DashboardPage({
       take: 4,
       include: { _count: { select: { characters: true, locations: true, episodes: true } } },
     }),
+    manageableRoles.length > 0
+      ? prisma.video.findMany({
+          where: { user: { role: { in: manageableRoles } } },
+          orderBy: { createdAt: "desc" },
+          take: 9,
+          include: { project: { select: { title: true } }, user: { select: { name: true } } },
+        })
+      : Promise.resolve([]),
   ]);
 
   const dailyLimit = storyConfig.dailyFreeCredits;
@@ -146,6 +156,33 @@ export default async function DashboardPage({
           ))
         )}
       </div>
+
+      {teamVideos.length > 0 && (
+        <div className="mt-14">
+          <h2 className="font-heading text-xl font-semibold text-white">Team Stories</h2>
+          <p className="mt-1 text-sm text-zinc-500">Episodes owned by users below you in the role hierarchy.</p>
+          <div className="mt-4 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {teamVideos.map((video) => (
+              <VideoCard
+                key={video.id}
+                video={{
+                  id: video.id,
+                  status: video.status,
+                  videoUrl: video.videoUrl,
+                  title: video.title,
+                  transcript: video.transcript,
+                  style: video.style,
+                  targetDuration: video.targetDuration,
+                  createdAt: video.createdAt,
+                  projectTitle: video.project?.title ?? null,
+                  ownerName: video.user.name,
+                }}
+                styleLabel={styleLabel(video.style)}
+              />
+            ))}
+          </div>
+        </div>
+      )}
 
       <UpgradeModal initialOpen={limitReached === "1"} />
     </section>

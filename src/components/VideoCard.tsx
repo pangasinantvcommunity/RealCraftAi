@@ -15,6 +15,7 @@ export type VideoCardData = {
   targetDuration: number | null;
   createdAt: Date;
   projectTitle: string | null;
+  ownerName?: string | null;
 };
 
 export default function VideoCard({ video, styleLabel }: { video: VideoCardData; styleLabel: string | null }) {
@@ -64,6 +65,11 @@ export default function VideoCard({ video, styleLabel }: { video: VideoCardData;
         {video.projectTitle && (
           <span className="absolute right-3 top-3 rounded-full bg-violet-500/80 px-3 py-1 text-[10px] uppercase tracking-wide text-white backdrop-blur">
             {video.projectTitle}
+          </span>
+        )}
+        {video.ownerName && (
+          <span className="absolute bottom-3 left-3 rounded-full bg-black/60 px-3 py-1 text-[10px] uppercase tracking-wide text-white backdrop-blur">
+            by {video.ownerName}
           </span>
         )}
       </div>

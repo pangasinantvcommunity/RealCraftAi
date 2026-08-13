@@ -31,14 +31,18 @@ export async function POST(request: NextRequest) {
   const passwordHash = await bcrypt.hash(password, 12);
   const bootstrapAdmin = isSuperAdmin(email);
 
+  const memberDefault = await prisma.roleCreditDefault.findUnique({ where: { role: "member" } });
+
   const user = await prisma.user.create({
     data: {
       name,
       email,
       passwordHash,
-      ...(bootstrapAdmin ? { role: "super_admin" as const, videoCredits: 101 } : {}),
+      ...(bootstrapAdmin
+        ? { role: "super_admin" as const, approvalStatus: "approved" as const, videoCredits: 101 }
+        : { role: "member" as const, approvalStatus: "pending" as const, videoCredits: memberDefault?.defaultCredits ?? 3 }),
     },
-    select: { id: true, name: true, email: true },
+    select: { id: true, name: true, email: true, approvalStatus: true },
   });
 
   return NextResponse.json({ user }, { status: 201 });

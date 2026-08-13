@@ -39,6 +39,7 @@ export default function CharacterSheetWizard({
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [generating, setGenerating] = useState(false);
+  const [generatingImage, setGeneratingImage] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
 
@@ -62,6 +63,29 @@ export default function CharacterSheetWizard({
       fireToast({ type: "error", message });
     } finally {
       setUploading(false);
+    }
+  };
+
+  const generateImage = async () => {
+    if (!draft.name.trim() || generatingImage) return;
+    setGeneratingImage(true);
+    try {
+      const response = await fetch(`/api/projects/${projectId}/characters/generate-image`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: draft.name, appearance: draft.appearance }),
+      });
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        throw new Error(body.error || "Could not generate an image.");
+      }
+      const { url } = await response.json();
+      setImageUrl(url);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Could not generate an image.";
+      fireToast({ type: "error", message });
+    } finally {
+      setGeneratingImage(false);
     }
   };
 
@@ -222,6 +246,14 @@ export default function CharacterSheetWizard({
                 onChange={(e) => handleFileChange(e.target.files?.[0])}
               />
             </label>
+            <button
+              type="button"
+              onClick={generateImage}
+              disabled={!draft.name.trim() || generatingImage}
+              className="shrink-0 self-start rounded-lg border border-violet-400/40 bg-violet-500/10 px-2 py-1 text-[10px] font-semibold text-violet-300 transition-colors hover:bg-violet-500/20 disabled:opacity-40"
+            >
+              {generatingImage ? "Generating…" : "✨ Generate"}
+            </button>
 
             <div className="grid flex-1 gap-2 sm:grid-cols-2">
               <input

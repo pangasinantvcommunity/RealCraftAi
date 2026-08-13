@@ -3,6 +3,7 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import EpisodePromptForm from "@/components/EpisodePromptForm";
 import { computeEpisodeSceneCount } from "@/lib/project-memory";
+import { canAccessResource } from "@/lib/auth/permissions";
 import type { RuntimeStructure } from "@/types/project";
 
 export default async function NewEpisodePage({ params }: { params: Promise<{ id: string }> }) {
@@ -11,9 +12,9 @@ export default async function NewEpisodePage({ params }: { params: Promise<{ id:
 
   const project = await prisma.project.findUnique({
     where: { id },
-    include: { _count: { select: { characters: true, locations: true } } },
+    include: { _count: { select: { characters: true, locations: true } }, user: { select: { id: true, role: true } } },
   });
-  if (!project || project.userId !== session!.user.id) {
+  if (!project || !canAccessResource(session!.user, { id: project.user.id, role: project.user.role })) {
     notFound();
   }
 

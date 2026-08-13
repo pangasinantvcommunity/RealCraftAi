@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { storyConfig } from "@/lib/config";
-import type { ProjectContext, RuntimeStructure } from "@/types/project";
+import { canAccessResource } from "@/lib/auth/permissions";
+import type { ProjectContext, RuntimeStructure, Viewer } from "@/types/project";
 
 const RUNTIME_STRUCTURE_KEYS: (keyof RuntimeStructure)[] = [
   "totalRuntimeSeconds",
@@ -39,17 +40,23 @@ export function sanitizeRuntimeStructure(input: unknown): RuntimeStructure {
   return result;
 }
 
-/** Loads a project (scoped to its owner) into the flat shape used for prompt-building and export. */
-export async function buildProjectContext(projectId: string, userId: string): Promise<ProjectContext | null> {
+/**
+ * Loads a project into the flat shape used for prompt-building and export.
+ * Accessible to the owner, or to a viewer whose role outranks the owner's
+ * (per the hierarchy: Super Admin > Administrator > Moderator > Contributor
+ * > Member) — everyone else gets null, same as "not found".
+ */
+export async function buildProjectContext(projectId: string, viewer: Viewer): Promise<ProjectContext | null> {
   const project = await prisma.project.findUnique({
     where: { id: projectId },
     include: {
       characters: { orderBy: { createdAt: "asc" } },
       locations: { orderBy: { createdAt: "asc" } },
+      user: { select: { id: true, role: true } },
     },
   });
 
-  if (!project || project.userId !== userId) {
+  if (!project || !canAccessResource(viewer, { id: project.user.id, role: project.user.role })) {
     return null;
   }
 
@@ -61,6 +68,8 @@ export async function buildProjectContext(projectId: string, userId: string): Pr
     runtimeStructure: (project.runtimeStructure as RuntimeStructure | null) ?? null,
     visualStyle: project.visualStyle,
     aspectRatio: project.aspectRatio,
+    ownerId: project.user.id,
+    ownerRole: project.user.role,
     characters: project.characters.map((c) => ({
       id: c.id,
       name: c.name,

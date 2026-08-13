@@ -78,7 +78,7 @@ export async function POST(request: NextRequest) {
     // Episode generation inside a project: style/aspect ratio/characters are
     // locked to the project's saved defaults — any client-sent values for
     // those fields are ignored so inheritance can't be bypassed.
-    const context = await buildProjectContext(projectId, userId);
+    const context = await buildProjectContext(projectId, { id: userId, role: session.user.role });
     if (!context) {
       return NextResponse.json({ error: "Project not found." }, { status: 404 });
     }

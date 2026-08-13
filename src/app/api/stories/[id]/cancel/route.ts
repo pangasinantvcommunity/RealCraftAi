@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { canAccessResource } from "@/lib/auth/permissions";
 
 const CANCELLABLE_STATUSES = ["pending", "transcribing", "creating_scenes", "generating_images", "rendering"];
 
@@ -12,8 +13,8 @@ export async function POST(_request: NextRequest, { params }: { params: Promise<
   }
 
   const { id } = await params;
-  const video = await prisma.video.findUnique({ where: { id } });
-  if (!video || video.userId !== session.user.id) {
+  const video = await prisma.video.findUnique({ where: { id }, include: { user: { select: { id: true, role: true } } } });
+  if (!video || !canAccessResource(session.user, { id: video.user.id, role: video.user.role })) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 

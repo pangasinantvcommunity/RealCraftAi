@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import CharacterEditForm from "@/components/project/CharacterEditForm";
+import { canAccessResource } from "@/lib/auth/permissions";
 
 export default async function EditCharacterPage({
   params,
@@ -13,10 +14,14 @@ export default async function EditCharacterPage({
 
   const character = await prisma.projectCharacter.findUnique({
     where: { id: characterId },
-    include: { project: true },
+    include: { project: { include: { user: { select: { id: true, role: true } } } } },
   });
 
-  if (!character || character.projectId !== projectId || character.project.userId !== session!.user.id) {
+  if (
+    !character ||
+    character.projectId !== projectId ||
+    !canAccessResource(session!.user, { id: character.project.user.id, role: character.project.user.role })
+  ) {
     notFound();
   }
 

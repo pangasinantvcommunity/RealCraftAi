@@ -2,14 +2,15 @@ import { notFound } from "next/navigation";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import ProjectForm from "@/components/ProjectForm";
+import { canAccessResource } from "@/lib/auth/permissions";
 import type { RuntimeStructure } from "@/types/project";
 
 export default async function EditProjectPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
   const { id } = await params;
 
-  const project = await prisma.project.findUnique({ where: { id } });
-  if (!project || project.userId !== session!.user.id) {
+  const project = await prisma.project.findUnique({ where: { id }, include: { user: { select: { id: true, role: true } } } });
+  if (!project || !canAccessResource(session!.user, { id: project.user.id, role: project.user.role })) {
     notFound();
   }
 

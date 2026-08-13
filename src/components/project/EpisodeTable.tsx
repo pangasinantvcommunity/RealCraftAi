@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { fireToast } from "@/components/ToastStack";
+import { outranks } from "@/lib/auth/permissions";
+import type { UserRole } from "@prisma/client";
 
 export type EpisodeRow = {
   id: string;
@@ -11,6 +13,14 @@ export type EpisodeRow = {
   title: string | null;
   status: string;
   generationStatus: string;
+  publishStatus: string;
+  ownerRole: UserRole;
+};
+
+const PUBLISH_LABELS: Record<string, string> = {
+  draft: "Unpublished",
+  published: "Published",
+  returned_for_revision: "Returned",
 };
 
 const STATUS_LABELS: Record<string, string> = {
@@ -35,7 +45,15 @@ function statusClasses(episode: EpisodeRow): string {
   return "border-violet-400/30 bg-violet-500/10 text-violet-300";
 }
 
-export default function EpisodeTable({ projectId, episodes }: { projectId: string; episodes: EpisodeRow[] }) {
+export default function EpisodeTable({
+  projectId,
+  episodes,
+  viewerRole,
+}: {
+  projectId: string;
+  episodes: EpisodeRow[];
+  viewerRole: UserRole;
+}) {
   const router = useRouter();
   const [busyId, setBusyId] = useState<string | null>(null);
 
@@ -77,6 +95,29 @@ export default function EpisodeTable({ projectId, episodes }: { projectId: strin
     }
   };
 
+  const setPublishStatus = async (episode: EpisodeRow, action: "publish" | "return_for_revision") => {
+    if (busyId) return;
+    setBusyId(episode.id);
+    try {
+      const response = await fetch(`/api/stories/${episode.id}/publish-status`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action }),
+      });
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        throw new Error(body.error || "Could not update publish status.");
+      }
+      fireToast({ type: "info", message: action === "publish" ? "Episode published." : "Returned for revision." });
+      router.refresh();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Could not update publish status.";
+      fireToast({ type: "error", message });
+    } finally {
+      setBusyId(null);
+    }
+  };
+
   const remove = async (episode: EpisodeRow) => {
     if (busyId) return;
     if (!window.confirm(`Delete Episode ${episode.episodeNumber}? This cannot be undone.`)) return;
@@ -104,6 +145,7 @@ export default function EpisodeTable({ projectId, episodes }: { projectId: strin
             <th className="px-5 py-4 font-medium">Episode</th>
             <th className="px-5 py-4 font-medium">Title</th>
             <th className="px-5 py-4 font-medium">Status</th>
+            <th className="px-5 py-4 font-medium">Publish</th>
             <th className="px-5 py-4 font-medium"></th>
           </tr>
         </thead>
@@ -126,7 +168,46 @@ export default function EpisodeTable({ projectId, episodes }: { projectId: strin
                 </span>
               </td>
               <td className="px-5 py-4">
+                {episode.status === "completed" && (
+                  <span
+                    className={`rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide ${
+                      episode.publishStatus === "published"
+                        ? "border-emerald-400/30 bg-emerald-500/10 text-emerald-300"
+                        : episode.publishStatus === "returned_for_revision"
+                          ? "border-amber-400/30 bg-amber-500/10 text-amber-300"
+                          : "border-white/10 bg-white/5 text-zinc-400"
+                    }`}
+                  >
+                    {PUBLISH_LABELS[episode.publishStatus] ?? episode.publishStatus}
+                  </span>
+                )}
+              </td>
+              <td className="px-5 py-4">
                 <div className="flex items-center justify-end gap-4 text-xs font-semibold">
+                  {episode.status === "completed" && outranks(viewerRole, episode.ownerRole) && (
+                    <>
+                      {episode.publishStatus !== "published" && (
+                        <button
+                          type="button"
+                          onClick={() => setPublishStatus(episode, "publish")}
+                          disabled={busyId === episode.id}
+                          className="text-emerald-300 transition-colors hover:text-emerald-200 disabled:opacity-50"
+                        >
+                          Publish
+                        </button>
+                      )}
+                      {episode.publishStatus === "published" && (
+                        <button
+                          type="button"
+                          onClick={() => setPublishStatus(episode, "return_for_revision")}
+                          disabled={busyId === episode.id}
+                          className="text-amber-300 transition-colors hover:text-amber-200 disabled:opacity-50"
+                        >
+                          Return
+                        </button>
+                      )}
+                    </>
+                  )}
                   {episode.generationStatus === "draft" && (
                     <button
                       type="button"

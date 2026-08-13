@@ -41,8 +41,9 @@ export default function RegisterPage() {
       return;
     }
 
+    const { user } = await response.json();
     await signIn("credentials", { email, password, redirect: false });
-    router.push("/dashboard");
+    router.push(user.approvalStatus === "approved" ? "/dashboard" : "/pending-approval");
     router.refresh();
   }
 

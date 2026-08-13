@@ -11,7 +11,7 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
   }
 
   const { id } = await params;
-  const context = await buildProjectContext(id, session.user.id);
+  const context = await buildProjectContext(id, { id: session.user.id, role: session.user.role });
   if (!context) {
     return NextResponse.json({ error: "Project not found." }, { status: 404 });
   }
